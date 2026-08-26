@@ -2,33 +2,123 @@
 
 下一代LLM网关和AI资产管理系统
 
+## PostgreSQL 管理
+
+### 配置文件
+
+`docker-compose.yml`：
+
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    container_name: token-hub-postgres
+    environment:
+      POSTGRES_USER: token_hub
+      POSTGRES_PASSWORD: token_hub_123
+      POSTGRES_DB: token_hub
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  pg_data:
+```
+
+### 常用命令
+
+```bash
+# 启动（后台运行）
+docker-compose up -d
+
+# 停止
+docker-compose down
+
+# 停止并删除数据卷（慎用，会清除所有数据）
+docker-compose down -v
+
+# 查看运行状态
+docker-compose ps
+
+# 查看日志
+docker-compose logs postgres
+
+# 实时跟踪日志
+docker-compose logs -f postgres
+
+# 重启
+docker-compose restart postgres
+```
+
+### 连接信息
+
+| 项目 | 值 |
+|------|-----|
+| 主机 | `localhost` |
+| 端口 | `5432` |
+| 用户名 | `token_hub` |
+| 密码 | `token_hub_123` |
+| 数据库 | `token_hub` |
+| 连接字符串 | `postgres://token_hub:token_hub_123@localhost:5432/token_hub?sslmode=disable` |
+
+### 数据持久化
+
+- 数据存储在 Docker 卷 `pg_data` 中
+- 执行 `docker-compose down` 不会丢失数据
+- 只有执行 `docker-compose down -v` 才会删除数据
+
+### 使用 pgAdmin 管理（可选）
+
+如需图形化管理工具，可在 `docker-compose.yml` 中添加：
+
+```yaml
+services:
+  # ... postgres 配置 ...
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: token-hub-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+```
+
+访问 http://localhost:5050 即可使用 pgAdmin。
+
 ## 快速开始
 
-### 安装依赖
+### 1. 启动 PostgreSQL
+
+```bash
+docker-compose up -d
+```
+
+### 2. 配置环境变量
+
+创建 `.env` 文件：
+
+```bash
+SQL_DSN=postgres://token_hub:token_hub_123@localhost:5432/token_hub?sslmode=disable
+PORT=3001
+GIN_MODE=debug
+```
+
+### 3. 安装依赖
 
 ```bash
 go mod tidy
 ```
 
-### 编译
-
-```bash
-go build -o token-hub.exe .
-```
-
-### 运行后端
-
-```bash
-./token-hub.exe
-```
-
-或者直接运行：
+### 4. 运行后端
 
 ```bash
 go run main.go
 ```
 
-### 运行前端
+### 5. 运行前端（可选）
 
 ```bash
 cd web
@@ -121,6 +211,7 @@ token-hub/
 │   ├── index.html       # HTML模板
 │   ├── package.json     # 前端依赖
 │   └── vite.config.ts   # Vite配置
+├── docker-compose.yml   # Docker Compose 配置（PostgreSQL）
 ├── .env.example         # 环境变量示例
 ├── go.mod               # Go模块文件
 └── go.sum               # 依赖校验文件

@@ -1,0 +1,21 @@
+# 本地开发用 PostgreSQL
+# 启动: docker-compose up -d
+# 停止: docker-compose down
+# 删除数据: docker-compose down -v
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: token-hub-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: token_hub
+      POSTGRES_PASSWORD: token_hub_123
+      POSTGRES_DB: token_hub
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pg_data:
