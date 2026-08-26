@@ -6,11 +6,19 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
+	"github.com/FutureAI/token-hub/model"
 	"github.com/FutureAI/token-hub/router"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	// 初始化数据库
+	if err := model.InitDB(); err != nil {
+		common.FatalLog("failed to initialize database: " + err.Error())
+	}
+	defer model.CloseDB()
+
 	// 设置 Gin 模式
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
@@ -48,8 +56,8 @@ func main() {
 	}
 
 	// 启动服务器
-	log.Printf("Token Hub started on port %s", port)
+	common.SysLogf("Token Hub started on port %s", port)
 	if err := server.Run(":" + port); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+		common.FatalLog("failed to start server: " + err.Error())
 	}
 }

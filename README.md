@@ -44,6 +44,11 @@ npm run dev
 |--------|------|--------|
 | `PORT` | 服务端口 | `3001` |
 | `GIN_MODE` | Gin模式 (debug/release) | `release` |
+| `SQL_DSN` | PostgreSQL 连接字符串 | 必须设置 |
+| `SQL_MAX_IDLE_CONNS` | 最大空闲连接数 | `10` |
+| `SQL_MAX_OPEN_CONNS` | 最大打开连接数 | `100` |
+| `SQL_MAX_LIFETIME` | 连接最大生存时间(秒) | `60` |
+| `DEBUG` | 调试模式 | `false` |
 
 ## API 接口
 
@@ -86,7 +91,7 @@ GET /health
 
 - **后端**: Go + Gin
 - **前端**: React + TypeScript + Vite
-- **数据库**: 待定
+- **数据库**: PostgreSQL
 - **缓存**: 待定
 
 ## 项目结构
@@ -94,19 +99,29 @@ GET /health
 ```
 token-hub/
 ├── main.go              # 主入口文件
+├── common/              # 公共工具
+│   ├── database.go      # 数据库类型定义
+│   ├── env.go           # 环境变量工具
+│   └── log.go           # 日志工具
 ├── router/              # 路由配置
 │   └── router.go
 ├── controller/          # 控制器
 │   └── model.go
-├── model/               # 数据模型（待实现）
+├── model/               # 数据模型
+│   ├── main.go          # 数据库初始化
+│   ├── user.go          # 用户模型
+│   └── model.go         # 模型管理
 ├── web/                 # 前端项目
 │   ├── src/
 │   │   ├── App.tsx      # 主页组件
-│   │   ├── App.css      # 主页样式（现代化设计）
+│   │   ├── App.css      # 主页样式
+│   │   ├── index.css    # Tailwind CSS
+│   │   ├── lib/utils.ts # 工具函数
 │   │   └── main.tsx     # 入口文件
 │   ├── index.html       # HTML模板
 │   ├── package.json     # 前端依赖
 │   └── vite.config.ts   # Vite配置
+├── .env.example         # 环境变量示例
 ├── go.mod               # Go模块文件
 └── go.sum               # 依赖校验文件
 ```
@@ -127,8 +142,9 @@ token-hub/
 
 ## 开发计划
 
+- [x] PostgreSQL 数据库集成
+- [x] 模型管理（从数据库读取）
 - [ ] 用户认证系统
-- [ ] 模型管理
 - [ ] API Key管理
 - [ ] 使用量统计
 - [ ] 计费系统
