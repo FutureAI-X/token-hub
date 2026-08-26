@@ -39,7 +39,7 @@ func main() {
 	// 获取端口
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "3000"
+		port = "3001"
 	}
 
 	// 验证端口

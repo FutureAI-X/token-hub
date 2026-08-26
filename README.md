@@ -16,7 +16,7 @@ go mod tidy
 go build -o token-hub.exe .
 ```
 
-### 运行
+### 运行后端
 
 ```bash
 ./token-hub.exe
@@ -28,11 +28,21 @@ go build -o token-hub.exe .
 go run main.go
 ```
 
+### 运行前端
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+前端开发服务器将在 http://localhost:5173 启动，并自动代理 API 请求到后端。
+
 ### 环境变量
 
 | 变量名 | 描述 | 默认值 |
 |--------|------|--------|
-| `PORT` | 服务端口 | `3000` |
+| `PORT` | 服务端口 | `3001` |
 | `GIN_MODE` | Gin模式 (debug/release) | `release` |
 
 ## API 接口
@@ -75,6 +85,7 @@ GET /health
 ## 技术栈
 
 - **后端**: Go + Gin
+- **前端**: React + TypeScript + Vite
 - **数据库**: 待定
 - **缓存**: 待定
 
@@ -88,6 +99,14 @@ token-hub/
 ├── controller/          # 控制器
 │   └── model.go
 ├── model/               # 数据模型（待实现）
+├── web/                 # 前端项目
+│   ├── src/
+│   │   ├── App.tsx      # 主页组件
+│   │   ├── App.css      # 主页样式
+│   │   └── main.tsx     # 入口文件
+│   ├── index.html       # HTML模板
+│   ├── package.json     # 前端依赖
+│   └── vite.config.ts   # Vite配置
 ├── go.mod               # Go模块文件
 └── go.sum               # 依赖校验文件
 ```
