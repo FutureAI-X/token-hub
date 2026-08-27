@@ -1,4 +1,13 @@
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+  return null
+}
 import { Home } from './pages/Home'
 import { Login } from './pages/Login'
 import { Pricing } from './pages/Pricing'
@@ -9,6 +18,7 @@ import { Wallet } from './pages/dashboard/Wallet'
 function App() {
   return (
     <HashRouter>
+      <ScrollToTop />
       <Routes>
         <Route path='/' element={<Home />} />
         <Route path='/login' element={<Login />} />

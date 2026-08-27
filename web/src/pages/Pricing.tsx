@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Search, Copy, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { ProfileDropdown } from '../components/ProfileDropdown'
+import { Header } from '../components/Header'
 import { PricingSidebar } from '../components/PricingSidebar'
 import type { PricingModel, PricingVendor, PricingData } from '../types/pricing'
 
@@ -163,9 +163,6 @@ function ModelCard({
 
 // ── 主页面 ──
 export function Pricing() {
-  const location = useLocation()
-  const [user, setUser] = useState<{ username: string; display_name?: string; role?: string } | null>(null)
-  const [scrolled, setScrolled] = useState(false)
   const [data, setData] = useState<PricingData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -175,26 +172,6 @@ export function Pricing() {
   const [tagFilter, setTagFilter] = useState(FILTER_ALL)
   const [quotaTypeFilter, setQuotaTypeFilter] = useState(FILTER_ALL)
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
-
-  // 滚动检测
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  // 读取用户信息
-  useEffect(() => {
-    const stored = localStorage.getItem('user')
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored))
-      } catch {
-        // ignore
-      }
-    }
-  }, [])
 
   // 获取定价数据
   useEffect(() => {
@@ -305,70 +282,7 @@ export function Pricing() {
 
   return (
     <div className='bg-background text-foreground relative min-h-svh overflow-x-clip'>
-      {/* ── Header ── */}
-      <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>
-        <div
-          className={cn(
-            'pointer-events-auto mx-auto transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
-            scrolled ? 'max-w-[52rem] px-3 pt-3' : 'max-w-7xl px-4 pt-0 md:px-6'
-          )}
-        >
-          <nav
-            className={cn(
-              'flex items-center justify-between transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]',
-              scrolled
-                ? 'bg-background/60 ring-border/50 h-12 rounded-2xl pr-1.5 pl-4 shadow-[0_2px_16px_-6px_rgba(0,0,0,0.08),0_0_0_0.5px_rgba(0,0,0,0.02)] ring-[0.5px] backdrop-blur-2xl dark:shadow-[0_2px_16px_-6px_rgba(0,0,0,0.4)]'
-                : 'h-16 px-2'
-            )}
-          >
-            <a href='/' className='group flex shrink-0 items-center gap-2.5'>
-              <div className='flex size-7 shrink-0 items-center justify-center transition-all duration-300 group-hover:scale-105'>
-                <span className='text-lg'>⚡</span>
-              </div>
-              <span className='text-sm font-semibold tracking-tight'>Token Hub</span>
-            </a>
-            <div className='hidden items-center gap-0.5 sm:flex'>
-              {[
-                { title: '主页', href: '/' },
-                { title: '控制台', href: '/dashboard' },
-                { title: '模型广场', href: '/pricing' },
-              ].map((link) => (
-                <Link
-                  key={link.href}
-                  to={link.href}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                    location.pathname === link.href
-                      ? 'text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {link.title}
-                </Link>
-              ))}
-              <a
-                href='https://future-ai.feishu.cn/wiki/Gs3Ow9fSfinMpwkCNuschCcYnab'
-                target='_blank'
-                rel='noopener noreferrer'
-                className='text-muted-foreground hover:text-foreground rounded-lg px-3 py-1.5 text-sm font-medium transition-colors'
-              >
-                文档
-              </a>
-              <div className='bg-border/40 mx-2 h-4 w-px' />
-              {user ? (
-                <ProfileDropdown user={user} />
-              ) : (
-                <Link
-                  to='/login'
-                  className='bg-foreground text-background inline-flex h-8 items-center justify-center rounded-lg px-3.5 text-xs font-medium transition-opacity hover:opacity-90'
-                >
-                  登录
-                </Link>
-              )}
-            </div>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* ── 主内容 ── */}
       <div className='relative'>
