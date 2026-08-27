@@ -20,6 +20,12 @@ func SetRouter(server *gin.Engine) {
 		authRouter.POST("/login", controller.Login)
 	}
 
+	// 公开接口（无需登录）
+	pricingRouter := server.Group("/api/pricing")
+	{
+		pricingRouter.GET("", controller.GetPricing)
+	}
+
 	// 需要登录的接口
 	userRouter := server.Group("/api/user")
 	userRouter.Use(middleware.UserAuth())

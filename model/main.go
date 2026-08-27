@@ -73,6 +73,12 @@ func InitDB() error {
 		common.SysError("failed to create root user: " + err.Error())
 	}
 
+	// 创建默认供应商数据
+	err = createDefaultVendors()
+	if err != nil {
+		common.SysError("failed to create default vendors: " + err.Error())
+	}
+
 	// 创建默认模型数据
 	err = createDefaultModels()
 	if err != nil {
@@ -87,6 +93,7 @@ func migrateDB() error {
 	err := DB.AutoMigrate(
 		&User{},
 		&Token{},
+		&Vendor{},
 		&Model{},
 	)
 	if err != nil {
@@ -130,11 +137,32 @@ func addTableComments() error {
 		`COMMENT ON COLUMN tokens.updated_at IS '记录最后更新时间'`,
 		`COMMENT ON COLUMN tokens.deleted_at IS '软删除时间戳'`,
 
+		// vendors 表注释
+		`COMMENT ON TABLE vendors IS '供应商表，存储 AI 模型供应商信息'`,
+		`COMMENT ON COLUMN vendors.id IS '供应商唯一标识，自增主键'`,
+		`COMMENT ON COLUMN vendors.name IS '供应商名称，全局唯一'`,
+		`COMMENT ON COLUMN vendors.description IS '供应商描述'`,
+		`COMMENT ON COLUMN vendors.icon IS '供应商图标标识'`,
+		`COMMENT ON COLUMN vendors.status IS '供应商状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN vendors.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN vendors.updated_at IS '记录最后更新时间'`,
+		`COMMENT ON COLUMN vendors.deleted_at IS '软删除时间戳'`,
+
 		// models 表注释
 		`COMMENT ON TABLE models IS '模型表，存储可用的 AI 模型信息'`,
 		`COMMENT ON COLUMN models.id IS '模型唯一标识，自增主键'`,
-		`COMMENT ON COLUMN models.name IS '模型名称，全局唯一'`,
+		`COMMENT ON COLUMN models.name IS '模型名称，全局唯一，用于 API 调用'`,
+		`COMMENT ON COLUMN models.description IS '模型描述信息'`,
+		`COMMENT ON COLUMN models.icon IS '模型图标标识'`,
+		`COMMENT ON COLUMN models.tags IS '模型标签，逗号分隔'`,
+		`COMMENT ON COLUMN models.vendor_id IS '供应商ID，关联 vendors 表'`,
 		`COMMENT ON COLUMN models.owner IS '模型所有者/提供商'`,
+		`COMMENT ON COLUMN models.quota_type IS '计费类型：0=按量计费, 1=按次计费'`,
+		`COMMENT ON COLUMN models.model_ratio IS '输入token倍率'`,
+		`COMMENT ON COLUMN models.completion_ratio IS '输出token倍率（相对输入的倍数）'`,
+		`COMMENT ON COLUMN models.model_price IS '按次计费价格（quota_type=1时使用）'`,
+		`COMMENT ON COLUMN models.context_length IS '最大上下文长度'`,
+		`COMMENT ON COLUMN models.max_output_tokens IS '最大输出token数'`,
 		`COMMENT ON COLUMN models.status IS '模型状态：1=启用, 2=禁用'`,
 		`COMMENT ON COLUMN models.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN models.updated_at IS '记录最后更新时间'`,
