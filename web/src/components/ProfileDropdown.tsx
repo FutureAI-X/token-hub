@@ -86,7 +86,7 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
           {/* 菜单项 */}
           <div className='p-1'>
             <button
-              onClick={() => { setOpen(false); navigate('/profile') }}
+              onClick={() => { setOpen(false); navigate('/dashboard/profile') }}
               className='hover:bg-accent flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-colors'
             >
               <User className='size-4 text-muted-foreground' />
