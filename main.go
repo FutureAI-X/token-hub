@@ -10,9 +10,15 @@ import (
 	"github.com/FutureAI/token-hub/model"
 	"github.com/FutureAI/token-hub/router"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// 加载 .env 文件
+	if err := godotenv.Load(); err != nil {
+		common.SysLog("No .env file found, using environment variables")
+	}
+
 	// 初始化数据库
 	if err := model.InitDB(); err != nil {
 		common.FatalLog("failed to initialize database: " + err.Error())

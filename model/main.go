@@ -78,11 +78,71 @@ func InitDB() error {
 
 // migrateDB 数据库迁移
 func migrateDB() error {
-	return DB.AutoMigrate(
+	err := DB.AutoMigrate(
 		&User{},
 		&Token{},
 		&Model{},
 	)
+	if err != nil {
+		return err
+	}
+
+	// 添加表和字段注释
+	return addTableComments()
+}
+
+// addTableComments 为 PostgreSQL 表和字段添加注释
+func addTableComments() error {
+	comments := []string{
+		// users 表注释
+		`COMMENT ON TABLE users IS '用户表，存储系统用户信息'`,
+		`COMMENT ON COLUMN users.id IS '用户唯一标识，自增主键'`,
+		`COMMENT ON COLUMN users.username IS '用户名，用于登录，全局唯一'`,
+		`COMMENT ON COLUMN users.password IS '密码哈希值，使用 bcrypt 加密存储'`,
+		`COMMENT ON COLUMN users.display_name IS '显示名称，用于界面展示'`,
+		`COMMENT ON COLUMN users.role IS '用户角色：1=普通用户, 10=管理员, 100=root'`,
+		`COMMENT ON COLUMN users.status IS '用户状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN users.email IS '用户邮箱，用于通知和找回密码'`,
+		`COMMENT ON COLUMN users.quota IS '用户总配额，单位为 tokens'`,
+		`COMMENT ON COLUMN users.used_quota IS '已使用配额，单位为 tokens'`,
+		`COMMENT ON COLUMN users.access_token IS '用户访问令牌，用于 API 认证'`,
+		`COMMENT ON COLUMN users.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN users.updated_at IS '记录最后更新时间'`,
+		`COMMENT ON COLUMN users.deleted_at IS '软删除时间戳，非空表示已删除'`,
+
+		// tokens 表注释
+		`COMMENT ON TABLE tokens IS 'API Token 表，存储用户 API 访问令牌'`,
+		`COMMENT ON COLUMN tokens.id IS 'Token 唯一标识，自增主键'`,
+		`COMMENT ON COLUMN tokens.user_id IS '所属用户ID，关联 users 表'`,
+		`COMMENT ON COLUMN tokens.key IS 'Token 密钥，用于 API 认证'`,
+		`COMMENT ON COLUMN tokens.name IS 'Token 名称，便于用户识别'`,
+		`COMMENT ON COLUMN tokens.status IS 'Token 状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN tokens.expired_time IS '过期时间戳，-1 表示永不过期'`,
+		`COMMENT ON COLUMN tokens.remain_quota IS '剩余配额，-1 表示无限制'`,
+		`COMMENT ON COLUMN tokens.used_quota IS '已使用配额'`,
+		`COMMENT ON COLUMN tokens.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN tokens.updated_at IS '记录最后更新时间'`,
+		`COMMENT ON COLUMN tokens.deleted_at IS '软删除时间戳'`,
+
+		// models 表注释
+		`COMMENT ON TABLE models IS '模型表，存储可用的 AI 模型信息'`,
+		`COMMENT ON COLUMN models.id IS '模型唯一标识，自增主键'`,
+		`COMMENT ON COLUMN models.name IS '模型名称，全局唯一'`,
+		`COMMENT ON COLUMN models.owner IS '模型所有者/提供商'`,
+		`COMMENT ON COLUMN models.status IS '模型状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN models.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN models.updated_at IS '记录最后更新时间'`,
+		`COMMENT ON COLUMN models.deleted_at IS '软删除时间戳'`,
+	}
+
+	for _, comment := range comments {
+		if err := DB.Exec(comment).Error; err != nil {
+			// 注释失败不影响正常使用，只记录警告
+			common.SysError("failed to add comment: " + err.Error())
+		}
+	}
+
+	return nil
 }
 
 // CloseDB 关闭数据库连接

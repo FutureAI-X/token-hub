@@ -8,12 +8,25 @@ import (
 
 // Model 模型信息
 type Model struct {
-	ID        int            `json:"id" gorm:"primaryKey"`
-	Name      string         `json:"name" gorm:"uniqueIndex;size:64;not null"`
-	Owner     string         `json:"owner" gorm:"size:64;default:token-hub"`
-	Status    int            `json:"status" gorm:"default:1"` // 1=启用, 2=禁用
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	// 模型唯一标识，自增主键
+	ID int `json:"id" gorm:"primaryKey"`
+
+	// 模型名称，全局唯一，用于 API 调用
+	Name string `json:"name" gorm:"uniqueIndex;size:64;not null"`
+
+	// 模型所有者/提供商名称
+	Owner string `json:"owner" gorm:"size:64;default:token-hub"`
+
+	// 模型状态：1=启用, 2=禁用
+	Status int `json:"status" gorm:"default:1"`
+
+	// 记录创建时间
+	CreatedAt time.Time `json:"created_at"`
+
+	// 记录最后更新时间
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// 软删除时间戳
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
