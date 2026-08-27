@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { cn } from '../lib/utils'
 import { ProfileDropdown } from '../components/ProfileDropdown'
 
@@ -504,6 +504,7 @@ function HeroTerminalDemo() {
 
 /* ── Main Home ── */
 export function Home() {
+  const location = useLocation()
   const [scrolled, setScrolled] = useState(false)
   const [user, setUser] = useState<{ username: string; display_name?: string; role?: string } | null>(null)
 
@@ -657,8 +658,25 @@ export function Home() {
               <span className='text-sm font-semibold tracking-tight'>Token Hub</span>
             </a>
             <div className='hidden items-center gap-0.5 sm:flex'>
-              <a href='#features' className='text-muted-foreground hover:text-foreground rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200'>功能</a>
-              <a href='#how-it-works' className='text-muted-foreground hover:text-foreground rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200'>使用方法</a>
+              {[
+                { title: '主页', href: '/' },
+                { title: '控制台', href: '/dashboard' },
+                { title: '模型广场', href: '/pricing' },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                    location.pathname === link.href
+                      ? 'text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {link.title}
+                </Link>
+              ))}
+              <a href='https://future-ai.feishu.cn/wiki/Gs3Ow9fSfinMpwkCNuschCcYnab' target='_blank' rel='noopener noreferrer' className='text-muted-foreground hover:text-foreground rounded-lg px-3 py-1.5 text-sm font-medium transition-colors'>文档</a>
               <div className='bg-border/40 mx-2 h-4 w-px' />
               {user ? (
                 <ProfileDropdown user={user} />
