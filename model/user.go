@@ -1,9 +1,31 @@
 package model
 
 import (
+	"errors"
 	"time"
 
+	"github.com/FutureAI/token-hub/common"
 	"gorm.io/gorm"
+)
+
+// 用户角色常量
+const (
+	RoleCommonUser = 1   // 普通用户
+	RoleAdminUser  = 10  // 管理员
+	RoleRootUser   = 100 // 超级管理员
+)
+
+// 用户状态常量
+const (
+	UserStatusEnabled  = 1 // 启用
+	UserStatusDisabled = 2 // 禁用
+)
+
+// 错误定义
+var (
+	ErrInvalidCredentials  = errors.New("invalid username or password")
+	ErrUserDisabled        = errors.New("user is disabled")
+	ErrUserEmptyCredentials = errors.New("username or password is empty")
 )
 
 // User 用户模型
@@ -82,4 +104,84 @@ type Token struct {
 
 	// 软删除时间戳
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// ValidateAndFill 验证用户名密码并填充用户信息
+func (user *User) ValidateAndFill() error {
+	password := user.Password
+	if user.Username == "" || password == "" {
+		return ErrUserEmptyCredentials
+	}
+
+	// 根据用户名查询用户
+	err := DB.Where("username = ?", user.Username).First(user).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidCredentials
+		}
+		return err
+	}
+
+	// 验证密码
+	if !common.ValidatePasswordAndHash(password, user.Password) {
+		return ErrInvalidCredentials
+	}
+
+	// 检查用户状态
+	if user.Status != UserStatusEnabled {
+		return ErrUserDisabled
+	}
+
+	return nil
+}
+
+// GetUserByUsername 根据用户名获取用户
+func GetUserByUsername(username string) (*User, error) {
+	var user User
+	err := DB.Where("username = ?", username).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// GetUserByID 根据ID获取用户
+func GetUserByID(id int) (*User, error) {
+	var user User
+	err := DB.Where("id = ?", id).First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
+// CreateRootUserIfNeed 创建 root 用户（如果不存在）
+func CreateRootUserIfNeed() error {
+	var count int64
+	DB.Model(&User{}).Count(&count)
+	if count > 0 {
+		return nil
+	}
+
+	// 创建默认 root 用户
+	hashedPassword, err := common.Password2Hash("123456")
+	if err != nil {
+		return err
+	}
+
+	rootUser := User{
+		Username:    "root",
+		Password:    hashedPassword,
+		DisplayName: "Root User",
+		Role:        RoleRootUser,
+		Status:      UserStatusEnabled,
+		Quota:       100000000,
+	}
+
+	if err := DB.Create(&rootUser).Error; err != nil {
+		return err
+	}
+
+	common.SysLog("created default root user (username: root, password: 123456)")
+	return nil
 }

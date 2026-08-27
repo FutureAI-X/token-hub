@@ -2,21 +2,42 @@ package router
 
 import (
 	"github.com/FutureAI/token-hub/controller"
+	"github.com/FutureAI/token-hub/middleware"
 	"github.com/gin-gonic/gin"
 )
 
 func SetRouter(server *gin.Engine) {
-	// API 路由组
-	apiRouter := server.Group("/v1")
-	{
-		// 模型列表接口
-		apiRouter.GET("/models", controller.ListModels)
-	}
-
 	// 健康检查接口
 	server.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
 		})
 	})
+
+	// 认证相关接口（无需登录）
+	authRouter := server.Group("/api/auth")
+	{
+		authRouter.POST("/login", controller.Login)
+	}
+
+	// 需要登录的接口
+	userRouter := server.Group("/api/user")
+	userRouter.Use(middleware.UserAuth())
+	{
+		userRouter.GET("/info", controller.GetUserInfo)
+	}
+
+	// API 路由组（OpenAI 兼容格式）
+	apiRouter := server.Group("/v1")
+	{
+		// 模型列表接口
+		apiRouter.GET("/models", controller.ListModels)
+	}
+
+	// 管理员接口
+	adminRouter := server.Group("/api/admin")
+	adminRouter.Use(middleware.AdminAuth())
+	{
+		// 后续添加管理员接口
+	}
 }

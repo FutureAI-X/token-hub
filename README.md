@@ -138,9 +138,54 @@ npm run dev
 | `SQL_MAX_IDLE_CONNS` | 最大空闲连接数 | `10` |
 | `SQL_MAX_OPEN_CONNS` | 最大打开连接数 | `100` |
 | `SQL_MAX_LIFETIME` | 连接最大生存时间(秒) | `60` |
+| `JWT_SECRET` | JWT 密钥（用于生成和验证 Token） | `token-hub-jwt-secret-change-me` |
 | `DEBUG` | 调试模式 | `false` |
 
 ## API 接口
+
+### 用户登录
+
+```bash
+POST /api/auth/login
+```
+
+请求体：
+
+```json
+{
+  "username": "root",
+  "password": "123456"
+}
+```
+
+响应示例：
+
+```json
+{
+  "success": true,
+  "message": "登录成功",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "username": "root",
+      "display_name": "Root User",
+      "role": 100,
+      "status": 1,
+      "email": "",
+      "quota": 100000000,
+      "used_quota": 0
+    }
+  }
+}
+```
+
+### 获取用户信息（需要登录）
+
+```bash
+GET /api/user/info
+Authorization: Bearer <token>
+```
 
 ### 获取模型列表
 
@@ -192,11 +237,16 @@ token-hub/
 ├── common/              # 公共工具
 │   ├── database.go      # 数据库类型定义
 │   ├── env.go           # 环境变量工具
-│   └── log.go           # 日志工具
+│   ├── log.go           # 日志工具
+│   ├── crypto.go        # 密码加密工具
+│   └── jwt.go           # JWT Token 工具
 ├── router/              # 路由配置
 │   └── router.go
 ├── controller/          # 控制器
-│   └── model.go
+│   ├── model.go         # 模型控制器
+│   └── auth.go          # 认证控制器
+├── middleware/           # 中间件
+│   └── auth.go          # 认证中间件
 ├── model/               # 数据模型
 │   ├── main.go          # 数据库初始化
 │   ├── user.go          # 用户模型
@@ -235,7 +285,7 @@ token-hub/
 
 - [x] PostgreSQL 数据库集成
 - [x] 模型管理（从数据库读取）
-- [ ] 用户认证系统
+- [x] 用户认证系统（JWT + bcrypt）
 - [ ] API Key管理
 - [ ] 使用量统计
 - [ ] 计费系统

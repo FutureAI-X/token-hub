@@ -67,6 +67,12 @@ func InitDB() error {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 
+	// 创建默认 root 用户（如果不存在）
+	err = CreateRootUserIfNeed()
+	if err != nil {
+		common.SysError("failed to create root user: " + err.Error())
+	}
+
 	// 创建默认模型数据
 	err = createDefaultModels()
 	if err != nil {
