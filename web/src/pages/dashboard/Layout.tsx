@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, Outlet } from 'react-router-dom'
-import { User, Wallet, PanelLeft } from 'lucide-react'
+import { User, Coins, PanelLeft } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { Header } from '../../components/Header'
 
@@ -10,7 +10,7 @@ const sidebarNav = [
     group: '个人',
     items: [
       { title: '个人资料', href: '/dashboard/profile', icon: User },
-      { title: '钱包', href: '/dashboard/wallet', icon: Wallet },
+      { title: '积分', href: '/dashboard/wallet', icon: Coins },
     ],
   },
 ]

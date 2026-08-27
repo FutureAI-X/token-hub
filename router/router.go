@@ -31,6 +31,7 @@ func SetRouter(server *gin.Engine) {
 	userRouter.Use(middleware.UserAuth())
 	{
 		userRouter.GET("/info", controller.GetUserInfo)
+		userRouter.PUT("/email", controller.UpdateEmail)
 	}
 
 	// API 路由组（OpenAI 兼容格式）

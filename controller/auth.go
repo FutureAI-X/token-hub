@@ -76,6 +76,47 @@ func Login(c *gin.Context) {
 	})
 }
 
+// UpdateEmailRequest 更新邮箱请求
+type UpdateEmailRequest struct {
+	Email string `json:"email" binding:"required"`
+}
+
+// UpdateEmail 更新当前登录用户邮箱
+func UpdateEmail(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "未登录",
+		})
+		return
+	}
+
+	var req UpdateEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "邮箱不能为空",
+		})
+		return
+	}
+
+	// 更新邮箱
+	err := model.DB.Model(&model.User{}).Where("id = ?", userID).Update("email", req.Email).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "更新邮箱失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "邮箱更新成功",
+	})
+}
+
 // GetUserInfo 获取当前登录用户信息
 func GetUserInfo(c *gin.Context) {
 	userID, exists := c.Get("user_id")

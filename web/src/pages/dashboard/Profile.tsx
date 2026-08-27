@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { User, Mail, Shield, Calendar } from 'lucide-react'
+import { User, Mail, Check, X, Loader2, Coins } from 'lucide-react'
 import { getUserAvatarFallback, getUserAvatarStyle } from '../../lib/avatar'
-import { cn } from '../../lib/utils'
 
 interface UserInfo {
   id: number
@@ -14,15 +13,13 @@ interface UserInfo {
   used_quota: number
 }
 
-const roleLabels: Record<string, string> = {
-  root: '超级管理员',
-  admin: '管理员',
-  user: '普通用户',
-}
-
 export function Profile() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [email, setEmail] = useState('')
+  const [editingEmail, setEditingEmail] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState({ type: '', text: '' })
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -38,11 +35,50 @@ export function Profile() {
       .then((res) => {
         if (res.success) {
           setUser(res.data)
+          setEmail(res.data.email || '')
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  const handleSaveEmail = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    setSaving(true)
+    setMessage({ type: '', text: '' })
+
+    try {
+      const res = await fetch('/api/user/email', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setUser((prev) => (prev ? { ...prev, email } : prev))
+        setEditingEmail(false)
+        setMessage({ type: 'success', text: '邮箱更新成功' })
+        setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+      } else {
+        setMessage({ type: 'error', text: data.message || '更新失败' })
+      }
+    } catch {
+      setMessage({ type: 'error', text: '网络错误' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEmail(user?.email || '')
+    setEditingEmail(false)
+    setMessage({ type: '', text: '' })
+  }
 
   if (loading) {
     return (
@@ -65,7 +101,6 @@ export function Profile() {
 
   const avatarFallback = getUserAvatarFallback(user.username)
   const avatarStyle = getUserAvatarStyle(user.username)
-  const displayName = user.display_name || user.username
 
   return (
     <div className='space-y-6'>
@@ -76,6 +111,19 @@ export function Profile() {
           管理您的账户信息
         </p>
       </div>
+
+      {/* 消息提示 */}
+      {message.text && (
+        <div
+          className={`rounded-lg px-4 py-3 text-sm ${
+            message.type === 'success'
+              ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+              : 'bg-destructive/10 text-destructive border border-destructive/20'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
 
       {/* 用户信息卡片 */}
       <div className='border-border/60 rounded-xl border p-6'>
@@ -91,142 +139,86 @@ export function Profile() {
           </div>
 
           {/* 基本信息 */}
-          <div className='flex-1 space-y-4'>
-            <div>
-              <h3 className='text-xl font-semibold'>{displayName}</h3>
-              <p className='text-muted-foreground mt-0.5 text-sm'>
-                @{user.username}
-              </p>
+          <div className='flex-1 space-y-6'>
+            {/* 用户名 */}
+            <div className='flex items-center gap-3'>
+              <div className='bg-muted flex size-10 items-center justify-center rounded-lg'>
+                <User className='text-muted-foreground size-5' />
+              </div>
+              <div>
+                <p className='text-muted-foreground text-xs'>用户名</p>
+                <p className='text-sm font-medium'>{user.username}</p>
+              </div>
             </div>
 
-            <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
-              <InfoItem
-                icon={User}
-                label='用户名'
-                value={user.username}
-              />
-              <InfoItem
-                icon={Mail}
-                label='邮箱'
-                value={user.email || '未设置'}
-              />
-              <InfoItem
-                icon={Shield}
-                label='角色'
-                value={roleLabels[user.role] || user.role}
-              />
-              <InfoItem
-                icon={Calendar}
-                label='状态'
-                value={
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1.5 text-sm',
-                      user.status === 1 ? 'text-emerald-600' : 'text-destructive'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'size-1.5 rounded-full',
-                        user.status === 1 ? 'bg-emerald-500' : 'bg-destructive'
-                      )}
+            {/* 邮箱 */}
+            <div className='flex items-center gap-3'>
+              <div className='bg-muted flex size-10 items-center justify-center rounded-lg'>
+                <Mail className='text-muted-foreground size-5' />
+              </div>
+              <div className='flex-1'>
+                <p className='text-muted-foreground text-xs'>邮箱</p>
+                {editingEmail ? (
+                  <div className='mt-1 flex items-center gap-2'>
+                    <input
+                      type='email'
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder='请输入邮箱'
+                      className='bg-background border-border/60 focus-visible:ring-ring h-9 flex-1 rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'
+                      autoFocus
                     />
-                    {user.status === 1 ? '正常' : '已禁用'}
-                  </span>
-                }
-              />
+                    <button
+                      onClick={handleSaveEmail}
+                      disabled={saving}
+                      className='bg-emerald-500 hover:bg-emerald-600 inline-flex size-9 items-center justify-center rounded-lg text-white transition-colors disabled:opacity-50'
+                    >
+                      {saving ? (
+                        <Loader2 className='size-4 animate-spin' />
+                      ) : (
+                        <Check className='size-4' />
+                      )}
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                      className='bg-muted hover:bg-muted/80 inline-flex size-9 items-center justify-center rounded-lg transition-colors'
+                    >
+                      <X className='size-4' />
+                    </button>
+                  </div>
+                ) : (
+                  <p
+                    className='hover:text-foreground cursor-pointer text-sm font-medium transition-colors'
+                    onClick={() => setEditingEmail(true)}
+                  >
+                    {user.email || '点击设置邮箱'}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 账户统计 */}
-      <div className='grid grid-cols-1 gap-4 sm:grid-cols-3'>
-        <StatCard
-          label='总配额'
-          value={formatQuota(user.quota)}
-          description='账户总配额额度'
-        />
-        <StatCard
-          label='已使用'
-          value={formatQuota(user.used_quota)}
-          description='已消耗的配额'
-        />
-        <StatCard
-          label='剩余配额'
-          value={formatQuota(user.quota - user.used_quota)}
-          description='可用配额余额'
-          highlight
-        />
+      {/* 积分信息 */}
+      <div className='border-border/60 rounded-xl border p-6'>
+        <div className='flex items-center gap-3'>
+          <div className='bg-emerald-500/10 flex size-10 items-center justify-center rounded-lg'>
+            <Coins className='size-5 text-emerald-600' />
+          </div>
+          <div>
+            <p className='text-muted-foreground text-xs'>当前积分</p>
+            <p className='text-2xl font-bold tabular-nums'>{formatPoints(user.quota - user.used_quota)}</p>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-// ── 信息项 ──
-function InfoItem({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType
-  label: string
-  value: React.ReactNode
-}) {
-  return (
-    <div className='flex items-center gap-3'>
-      <div className='bg-muted flex size-9 items-center justify-center rounded-lg'>
-        <Icon className='text-muted-foreground size-4' />
-      </div>
-      <div>
-        <p className='text-muted-foreground text-xs'>{label}</p>
-        <p className='text-sm font-medium'>{value}</p>
-      </div>
-    </div>
-  )
-}
-
-// ── 统计卡片 ──
-function StatCard({
-  label,
-  value,
-  description,
-  highlight = false,
-}: {
-  label: string
-  value: string
-  description: string
-  highlight?: boolean
-}) {
-  return (
-    <div
-      className={cn(
-        'rounded-xl border p-5',
-        highlight
-          ? 'border-emerald-500/30 bg-emerald-500/5'
-          : 'border-border/60'
-      )}
-    >
-      <p className='text-muted-foreground text-xs font-medium uppercase tracking-wider'>
-        {label}
-      </p>
-      <p
-        className={cn(
-          'mt-2 text-2xl font-bold tabular-nums',
-          highlight ? 'text-emerald-600' : ''
-        )}
-      >
-        {value}
-      </p>
-      <p className='text-muted-foreground mt-1 text-xs'>{description}</p>
-    </div>
-  )
-}
-
-// ── 格式化配额 ──
-function formatQuota(quota: number): string {
-  if (quota <= 0) return '0'
-  if (quota >= 1000000) return `${(quota / 1000000).toFixed(2)}M`
-  if (quota >= 1000) return `${(quota / 1000).toFixed(2)}K`
-  return quota.toString()
+// ── 格式化积分 ──
+function formatPoints(points: number): string {
+  if (points <= 0) return '0.00'
+  return points.toFixed(2)
 }
