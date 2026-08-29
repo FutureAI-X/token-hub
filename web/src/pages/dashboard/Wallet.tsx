@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Coins } from 'lucide-react'
 
 interface UserInfo {
@@ -9,6 +10,7 @@ interface UserInfo {
 }
 
 export function Wallet() {
+  const navigate = useNavigate()
   const [user, setUser] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -22,15 +24,23 @@ export function Wallet() {
     fetch('/api/user/info', {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
       .then((res) => {
-        if (res.success) {
+        if (res.status === 401) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          navigate('/login')
+          return null
+        }
+        return res.json()
+      })
+      .then((res) => {
+        if (res && res.success) {
           setUser(res.data)
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [navigate])
 
   if (loading) {
     return (

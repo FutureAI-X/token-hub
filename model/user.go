@@ -155,6 +155,72 @@ func GetUserByID(id int) (*User, error) {
 	return &user, nil
 }
 
+// GetUsers 分页查询用户列表，支持关键词搜索
+func GetUsers(page, pageSize int, keyword string) ([]User, int64, error) {
+	var users []User
+	var total int64
+
+	query := DB.Model(&User{})
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("username LIKE ? OR display_name LIKE ? OR email LIKE ?", like, like, like)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// AdminCreateUser 管理员创建用户
+func AdminCreateUser(user *User) error {
+	hashedPassword, err := common.Password2Hash(user.Password)
+	if err != nil {
+		return err
+	}
+	user.Password = hashedPassword
+	return DB.Create(user).Error
+}
+
+// AdminDeleteUser 管理员删除用户（软删除）
+func AdminDeleteUser(id int) error {
+	return DB.Delete(&User{}, id).Error
+}
+
+// UpdateUserStatus 更新用户状态
+func UpdateUserStatus(id int, status int) error {
+	return DB.Model(&User{}).Where("id = ?", id).Update("status", status).Error
+}
+
+// AdjustUserQuota 调整用户积分
+func AdjustUserQuota(id int, mode string, value int64) error {
+	user, err := GetUserByID(id)
+	if err != nil {
+		return err
+	}
+
+	switch mode {
+	case "add":
+		return DB.Model(user).Update("quota", user.Quota+value).Error
+	case "subtract":
+		newQuota := user.Quota - value
+		if newQuota < 0 {
+			newQuota = 0
+		}
+		return DB.Model(user).Update("quota", newQuota).Error
+	case "override":
+		return DB.Model(user).Update("quota", value).Error
+	default:
+		return errors.New("invalid mode: must be add, subtract, or override")
+	}
+}
+
 // CreateRootUserIfNeed 创建 root 用户（如果不存在）
 func CreateRootUserIfNeed() error {
 	var count int64

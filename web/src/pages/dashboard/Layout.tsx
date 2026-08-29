@@ -1,24 +1,52 @@
-import { useState } from 'react'
-import { Link, useLocation, Outlet } from 'react-router-dom'
-import { User, Coins, PanelLeft } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom'
+import { User, Coins, PanelLeft, Shield } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { Header } from '../../components/Header'
-
-// ── 侧边栏导航项 ──
-const sidebarNav = [
-  {
-    group: '个人',
-    items: [
-      { title: '个人资料', href: '/dashboard/profile', icon: User },
-      { title: '积分', href: '/dashboard/wallet', icon: Coins },
-    ],
-  },
-]
 
 // ── 主布局 ──
 export function DashboardLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const isRoot = useMemo(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      if (!stored) return false
+      const user = JSON.parse(stored)
+      return user.role >= 100
+    } catch {
+      return false
+    }
+  }, [])
+
+  const sidebarNav = useMemo(() => {
+    const nav = [
+      {
+        group: '个人',
+        items: [
+          { title: '个人资料', href: '/dashboard/profile', icon: User },
+          { title: '积分', href: '/dashboard/wallet', icon: Coins },
+        ],
+      },
+    ]
+    if (isRoot) {
+      nav.push({
+        group: '管理员',
+        items: [
+          { title: '用户管理', href: '/dashboard/admin/users', icon: Shield },
+        ],
+      })
+    }
+    return nav
+  }, [isRoot])
+
+  useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      navigate('/login', { replace: true })
+    }
+  }, [navigate])
 
   return (
     <div className='bg-background text-foreground relative min-h-svh overflow-x-clip'>
@@ -106,7 +134,7 @@ export function DashboardLayout() {
 
         {/* 内容区 */}
         <main className='min-w-0 flex-1'>
-          <div className='mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8'>
+          <div className='w-full px-4 py-6 sm:px-6 lg:px-8'>
             <Outlet />
           </div>
         </main>

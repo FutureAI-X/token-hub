@@ -12,15 +12,20 @@ export function Header({ leftExtra }: HeaderProps) {
   const [user, setUser] = useState<{ username: string; display_name?: string; role?: string } | null>(null)
 
   useEffect(() => {
+    const token = localStorage.getItem('token')
     const stored = localStorage.getItem('user')
-    if (stored) {
+    if (token && stored) {
       try {
         setUser(JSON.parse(stored))
       } catch {
-        // ignore
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        setUser(null)
       }
+    } else {
+      setUser(null)
     }
-  }, [])
+  }, [location.pathname])
 
   return (
     <header className='pointer-events-none fixed inset-x-0 top-0 z-50'>

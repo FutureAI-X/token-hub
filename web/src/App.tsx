@@ -14,6 +14,7 @@ import { Pricing } from './pages/Pricing'
 import { DashboardLayout } from './pages/dashboard/Layout'
 import { Profile } from './pages/dashboard/Profile'
 import { Wallet } from './pages/dashboard/Wallet'
+import { AdminUsers } from './pages/admin/Users'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path='/dashboard' element={<DashboardLayout />}>
           <Route path='profile' element={<Profile />} />
           <Route path='wallet' element={<Wallet />} />
+          <Route path='admin/users' element={<AdminUsers />} />
         </Route>
       </Routes>
     </HashRouter>

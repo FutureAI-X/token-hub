@@ -43,8 +43,12 @@ func SetRouter(server *gin.Engine) {
 
 	// 管理员接口
 	adminRouter := server.Group("/api/admin")
-	adminRouter.Use(middleware.AdminAuth())
+	adminRouter.Use(middleware.RootAuth())
 	{
-		// 后续添加管理员接口
+		adminRouter.GET("/users", controller.AdminGetUsers)
+		adminRouter.POST("/users", controller.AdminCreateUser)
+		adminRouter.DELETE("/users/:id", controller.AdminDeleteUser)
+		adminRouter.PUT("/users/:id/status", controller.AdminUpdateUserStatus)
+		adminRouter.PUT("/users/:id/quota", controller.AdminAdjustUserQuota)
 	}
 }

@@ -85,6 +85,46 @@ func AdminAuth() gin.HandlerFunc {
 	}
 }
 
+// RootAuth 超级管理员认证中间件（仅 role=100）
+func RootAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := extractToken(c)
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "未提供认证Token",
+			})
+			c.Abort()
+			return
+		}
+
+		claims, err := common.ParseToken(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "无效的Token",
+			})
+			c.Abort()
+			return
+		}
+
+		if claims.Role < model.RoleRootUser {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": "权限不足",
+			})
+			c.Abort()
+			return
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("username", claims.Username)
+		c.Set("user_role", claims.Role)
+
+		c.Next()
+	}
+}
+
 // extractToken 从请求中提取 Token
 func extractToken(c *gin.Context) string {
 	// 从 Authorization header 获取

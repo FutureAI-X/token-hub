@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { User, Mail, Check, X, Loader2, Coins } from 'lucide-react'
 import { getUserAvatarFallback, getUserAvatarStyle } from '../../lib/avatar'
 
@@ -14,6 +15,7 @@ interface UserInfo {
 }
 
 export function Profile() {
+  const navigate = useNavigate()
   const [user, setUser] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
@@ -31,16 +33,24 @@ export function Profile() {
     fetch('/api/user/info', {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => res.json())
       .then((res) => {
-        if (res.success) {
+        if (res.status === 401) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
+          navigate('/login')
+          return null
+        }
+        return res.json()
+      })
+      .then((res) => {
+        if (res && res.success) {
           setUser(res.data)
           setEmail(res.data.email || '')
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [navigate])
 
   const handleSaveEmail = async () => {
     const token = localStorage.getItem('token')
