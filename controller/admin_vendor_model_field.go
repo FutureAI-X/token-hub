@@ -25,22 +25,23 @@ func GetVendorModelFields(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": fields})
 }
 
-// SyncFieldsFromModel 从模型同步字段
-func SyncFieldsFromModel(c *gin.Context) {
+// SyncFieldsFromEndpoint 从端点同步字段
+func SyncFieldsFromEndpoint(c *gin.Context) {
 	vmID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的ID"})
 		return
 	}
 
-	// 获取关联的模型ID
-	vm, err := model.GetVendorModelByID(vmID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "供应商模型不存在"})
+	var req struct {
+		EndpointID int `json:"endpoint_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请提供 endpoint_id"})
 		return
 	}
 
-	if err := model.SyncFieldsFromModel(vmID, vm.ModelID); err != nil {
+	if err := model.SyncFieldsFromEndpoint(vmID, req.EndpointID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "同步失败: " + err.Error()})
 		return
 	}
@@ -50,12 +51,12 @@ func SyncFieldsFromModel(c *gin.Context) {
 
 // CreateVMFieldRequest 创建字段请求
 type CreateVMFieldRequest struct {
-	FieldKey     string `json:"field_key" binding:"required"`
-	FieldName    string `json:"field_name" binding:"required"`
-	FieldType    string `json:"field_type" binding:"required"`
-	Required     bool   `json:"required"`
-	Description  string `json:"description"`
-	ModelFieldID *int   `json:"model_field_id"` // 可选，关联模型字段
+	FieldKey         string `json:"field_key" binding:"required"`
+	FieldName        string `json:"field_name" binding:"required"`
+	FieldType        string `json:"field_type" binding:"required"`
+	Required         bool   `json:"required"`
+	Description      string `json:"description"`
+	EndpointFieldID  *int   `json:"endpoint_field_id"` // 可选，关联端点字段
 }
 
 // CreateVMField 手动创建字段
@@ -81,8 +82,8 @@ func CreateVMField(c *gin.Context) {
 	}
 
 	field := model.VendorModelField{
-		VendorModelID: vmID,
-		ModelFieldID:  req.ModelFieldID,
+		VendorModelID:   vmID,
+		EndpointFieldID: req.EndpointFieldID,
 		FieldKey:      req.FieldKey,
 		FieldName:     req.FieldName,
 		FieldType:     req.FieldType,
@@ -100,12 +101,12 @@ func CreateVMField(c *gin.Context) {
 
 // UpdateVMFieldRequest 更新字段请求
 type UpdateVMFieldRequest struct {
-	FieldKey     string `json:"field_key"`
-	FieldName    string `json:"field_name"`
-	FieldType    string `json:"field_type"`
-	Required     *bool  `json:"required"`
-	Description  string `json:"description"`
-	ModelFieldID *int   `json:"model_field_id"`
+	FieldKey         string `json:"field_key"`
+	FieldName        string `json:"field_name"`
+	FieldType        string `json:"field_type"`
+	Required         *bool  `json:"required"`
+	Description      string `json:"description"`
+	EndpointFieldID  *int   `json:"endpoint_field_id"`
 }
 
 // UpdateVMField 更新字段
@@ -145,11 +146,11 @@ func UpdateVMField(c *gin.Context) {
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
-	if req.ModelFieldID != nil {
-		if *req.ModelFieldID == -1 {
-			updates["model_field_id"] = nil // 取消绑定
+	if req.EndpointFieldID != nil {
+		if *req.EndpointFieldID == -1 {
+			updates["endpoint_field_id"] = nil // 取消绑定
 		} else {
-			updates["model_field_id"] = req.ModelFieldID
+			updates["endpoint_field_id"] = req.EndpointFieldID
 		}
 	}
 

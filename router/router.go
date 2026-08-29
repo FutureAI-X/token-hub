@@ -72,16 +72,42 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.DELETE("/vendor-models/:id", controller.AdminDeleteVendorModel)
 
 		adminRouter.GET("/vendor-models/:id/fields", controller.GetVendorModelFields)
-		adminRouter.POST("/vendor-models/:id/fields/sync", controller.SyncFieldsFromModel)
+		adminRouter.POST("/vendor-models/:id/fields/sync", controller.SyncFieldsFromEndpoint)
 		adminRouter.POST("/vendor-models/:id/fields", controller.CreateVMField)
 		adminRouter.PUT("/vendor-models/:id/fields/:fieldId", controller.UpdateVMField)
 		adminRouter.DELETE("/vendor-models/:id/fields/:fieldId", controller.DeleteVMField)
+
+		adminRouter.GET("/vendor-endpoints", controller.AdminGetVendorEndpoints)
+		adminRouter.POST("/vendor-endpoints", controller.AdminCreateVendorEndpoint)
+		adminRouter.PUT("/vendor-endpoints/:id", controller.AdminUpdateVendorEndpoint)
+		adminRouter.PUT("/vendor-endpoints/:id/status", controller.AdminUpdateVendorEndpointStatus)
+		adminRouter.DELETE("/vendor-endpoints/:id", controller.AdminDeleteVendorEndpoint)
+
+		adminRouter.GET("/vendor-endpoints/:id/fields", controller.GetVendorEndpointFields)
+		adminRouter.POST("/vendor-endpoints/:id/fields/sync", controller.SyncVEFieldsFromEndpoint)
+		adminRouter.POST("/vendor-endpoints/:id/fields", controller.CreateVEField)
+		adminRouter.PUT("/vendor-endpoints/:id/fields/:fieldId", controller.UpdateVEField)
+		adminRouter.DELETE("/vendor-endpoints/:id/fields/:fieldId", controller.DeleteVEField)
+
+		adminRouter.GET("/endpoints", controller.AdminGetEndpoints)
+		adminRouter.POST("/endpoints", controller.AdminCreateEndpoint)
+		adminRouter.PUT("/endpoints/:id", controller.AdminUpdateEndpoint)
+		adminRouter.PUT("/endpoints/:id/status", controller.AdminUpdateEndpointStatus)
+		adminRouter.DELETE("/endpoints/:id", controller.AdminDeleteEndpoint)
+
+		adminRouter.GET("/endpoints/:id/fields", controller.GetEndpointFields)
+		adminRouter.POST("/endpoints/:id/fields", controller.CreateEndpointField)
+		adminRouter.PUT("/endpoints/:id/fields/:fieldId", controller.UpdateEndpointField)
+		adminRouter.DELETE("/endpoints/:id/fields/:fieldId", controller.DeleteEndpointField)
 
 		adminRouter.GET("/models", controller.AdminGetModels)
 		adminRouter.POST("/models", controller.AdminCreateModel)
 		adminRouter.PUT("/models/:id", controller.AdminUpdateModel)
 		adminRouter.PUT("/models/:id/status", controller.AdminUpdateModelStatus)
 		adminRouter.DELETE("/models/:id", controller.AdminDeleteModel)
+
+		adminRouter.GET("/models/:id/endpoints", controller.GetModelEndpoints)
+		adminRouter.PUT("/models/:id/endpoints", controller.SyncModelEndpoints)
 
 		adminRouter.GET("/models/:id/fields", controller.GetModelFields)
 		adminRouter.POST("/models/:id/fields", controller.CreateModelField)

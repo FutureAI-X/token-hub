@@ -3,13 +3,12 @@ import { Plus, Pencil, Trash2, X, Loader2, RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
   getVendorModelFields,
-  syncFieldsFromModel,
   createVMField,
   updateVMField,
   deleteVMField,
   type VendorModelField,
 } from '../../api/vendor-model'
-import { getModelFields, type ModelField } from '../../api/model-field'
+import { getEndpoints, getEndpointFields, type Endpoint, type EndpointField } from '../../api/endpoint'
 
 const TYPE_OPTIONS = [
   { value: 'string', label: '字符串' },
@@ -31,16 +30,17 @@ interface VendorModelFieldManagerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   vendorModelId: number
-  modelId: number
   vendorName: string
   modelName: string
 }
 
-export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, modelId, vendorName, modelName }: VendorModelFieldManagerProps) {
+export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, vendorName, modelName }: VendorModelFieldManagerProps) {
   const [fields, setFields] = useState<VendorModelField[]>([])
   const [loading, setLoading] = useState(false)
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([])
+  const [endpointFields, setEndpointFields] = useState<EndpointField[]>([])
+  const [syncEndpointId, setSyncEndpointId] = useState<string>('')
   const [syncing, setSyncing] = useState(false)
-  const [modelFields, setModelFields] = useState<ModelField[]>([])
 
   const [editingId, setEditingId] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
@@ -50,7 +50,7 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
   const [fType, setFType] = useState('string')
   const [fRequired, setFRequired] = useState(false)
   const [fDesc, setFDesc] = useState('')
-  const [selectedModelFieldId, setSelectedModelFieldId] = useState<number | null>(null)
+  const [selectedEndpointFieldId, setSelectedEndpointFieldId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [syncMsg, setSyncMsg] = useState('')
@@ -64,15 +64,27 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
     finally { setLoading(false) }
   }
 
+  // 加载端点列表和当前选择端点的字段
   useEffect(() => {
     if (open) {
       loadFields()
       setSyncMsg('')
-      getModelFields(modelId).then(res => {
-        if (res.success) setModelFields(res.data || [])
+      getEndpoints().then(res => {
+        if (res.success) setEndpoints((res.data || []).filter(e => e.status === 1))
       }).catch(() => {})
     }
-  }, [open, vendorModelId, modelId])
+  }, [open, vendorModelId])
+
+  // 当选择端点时加载其字段
+  useEffect(() => {
+    if (syncEndpointId) {
+      getEndpointFields(Number(syncEndpointId)).then(res => {
+        if (res.success) setEndpointFields(res.data || [])
+      }).catch(() => {})
+    } else {
+      setEndpointFields([])
+    }
+  }, [syncEndpointId])
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden'
@@ -89,35 +101,35 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
   }, [open, onOpenChange])
 
   const resetForm = () => {
-    setFKey(''); setFName(''); setFType('string'); setFRequired(false); setFDesc(''); setError(''); setSelectedModelFieldId(null)
+    setFKey(''); setFName(''); setFType('string'); setFRequired(false); setFDesc(''); setError(''); setSelectedEndpointFieldId(null)
   }
 
   const startAdd = () => { resetForm(); setAdding(true); setEditingId(null) }
 
-  const handleModelFieldSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleEndpointFieldSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value
     if (!val) {
-      setSelectedModelFieldId(-1) // -1 表示取消绑定
+      setSelectedEndpointFieldId(-1) // -1 表示取消绑定
       return
     }
-    const mf = modelFields.find(f => f.id === Number(val))
-    if (!mf) return
+    const ef = endpointFields.find(f => f.id === Number(val))
+    if (!ef) return
 
-    setSelectedModelFieldId(mf.id)
+    setSelectedEndpointFieldId(ef.id)
 
     // 仅新增时自动填充，编辑时只改绑定
     if (adding) {
-      setFKey(mf.field_key)
-      setFName(mf.field_name)
-      setFType(mf.field_type)
-      setFRequired(mf.required)
-      setFDesc(mf.description)
+      setFKey(ef.field_key)
+      setFName(ef.field_name)
+      setFType(ef.field_type)
+      setFRequired(ef.required)
+      setFDesc(ef.description)
     }
   }
   const startEdit = (f: VendorModelField) => {
     setFKey(f.field_key); setFName(f.field_name); setFType(f.field_type)
     setFRequired(f.required); setFDesc(f.description); setError('')
-    setSelectedModelFieldId(f.model_field_id ?? null)
+    setSelectedEndpointFieldId(f.endpoint_field_id ?? null)
     setEditingId(f.id); setAdding(false)
   }
   const cancelEdit = () => { setEditingId(null); setAdding(false); resetForm() }
@@ -131,14 +143,14 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
         const res = await createVMField(vendorModelId, {
           field_key: fKey, field_name: fName, field_type: fType,
           required: fRequired, description: fDesc,
-          model_field_id: selectedModelFieldId && selectedModelFieldId > 0 ? selectedModelFieldId : null,
+          endpoint_field_id: selectedEndpointFieldId && selectedEndpointFieldId > 0 ? selectedEndpointFieldId : null,
         })
         if (!res.success) { setError(res.message || '创建失败'); return }
       } else if (editingId) {
         const res = await updateVMField(vendorModelId, editingId, {
           field_key: fKey, field_name: fName, field_type: fType,
           required: fRequired, description: fDesc,
-          model_field_id: selectedModelFieldId ?? -1,
+          endpoint_field_id: selectedEndpointFieldId ?? -1,
         })
         if (!res.success) { setError(res.message || '更新失败'); return }
       }
@@ -152,9 +164,14 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
   }
 
   const handleSync = async () => {
+    if (!syncEndpointId) { setSyncMsg('请先选择端点'); return }
     setSyncing(true); setSyncMsg('')
     try {
-      const res = await syncFieldsFromModel(vendorModelId)
+      const res = await fetch(`/api/admin/vendor-models/${vendorModelId}/fields/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ endpoint_id: Number(syncEndpointId) }),
+      }).then(r => r.json())
       if (res.success) {
         setSyncMsg('同步成功')
         loadFields()
@@ -176,17 +193,17 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
         <div className='space-y-3'>
           {error && <div className='bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-xs'>{error}</div>}
 
-          {modelFields.length > 0 && (
+          {endpointFields.length > 0 && (
             <div className='space-y-1'>
-              <label className='text-muted-foreground text-xs'>绑定模型字段（可选）</label>
+              <label className='text-muted-foreground text-xs'>绑定端点字段（可选）</label>
               <select
-                value={selectedModelFieldId ?? ''}
-                onChange={handleModelFieldSelect}
+                value={selectedEndpointFieldId ?? ''}
+                onChange={handleEndpointFieldSelect}
                 className='border-border/60 bg-background focus-visible:ring-ring flex h-8 w-full rounded-md border px-2.5 text-sm focus-visible:ring-1 focus-visible:outline-none'
               >
                 <option value=''>-- 不绑定 --</option>
-                {modelFields.map(mf => (
-                  <option key={mf.id} value={mf.id}>{mf.field_key} · {mf.field_name}</option>
+                {endpointFields.map(ef => (
+                  <option key={ef.id} value={ef.id}>{ef.field_key} · {ef.field_name}</option>
                 ))}
               </select>
             </div>
@@ -290,8 +307,8 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
                       </td>
                       <td className='px-4 py-3'><span className='text-muted-foreground text-xs'>{f.description || '-'}</span></td>
                       <td className='px-4 py-3'>
-                        {f.model_field_id ? (() => {
-                          const bound = modelFields.find(mf => mf.id === f.model_field_id)
+                        {f.endpoint_field_id ? (() => {
+                          const bound = endpointFields.find(ef => ef.id === f.endpoint_field_id)
                           return bound ? (
                             <span className='rounded bg-blue-500/10 px-1.5 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400'>
                               {bound.field_key}
@@ -329,10 +346,17 @@ export function VendorModelFieldManager({ open, onOpenChange, vendorModelId, mod
               className='border-border/60 hover:bg-muted inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50'>
               <Plus className='size-4' /> 添加字段
             </button>
-            <button onClick={handleSync} disabled={syncing}
+            <select value={syncEndpointId} onChange={(e) => setSyncEndpointId(e.target.value)}
+              className='border-border/60 bg-background h-9 rounded-lg border px-2 text-sm'>
+              <option value=''>选择端点同步...</option>
+              {endpoints.map(ep => (
+                <option key={ep.id} value={ep.id}>{ep.name} ({ep.path})</option>
+              ))}
+            </select>
+            <button onClick={handleSync} disabled={syncing || !syncEndpointId}
               className='border-border/60 hover:bg-muted inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors disabled:opacity-50'>
               {syncing ? <Loader2 className='size-4 animate-spin' /> : <RefreshCw className='size-4' />}
-              从模型同步
+              同步
             </button>
             {syncMsg && <span className='text-sm text-emerald-600 dark:text-emerald-400'>{syncMsg}</span>}
           </div>

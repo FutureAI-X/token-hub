@@ -6,11 +6,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// VendorModelField 供应商模型字段定义（独立于模型字段，支持从模型同步或手动新增）
+// VendorModelField 供应商模型字段定义（独立于端点字段，支持从端点同步或手动新增）
 type VendorModelField struct {
-	ID            int        `json:"id" gorm:"primaryKey"`
-	VendorModelID int        `json:"vendor_model_id" gorm:"index;not null"`
-	ModelFieldID  *int       `json:"model_field_id" gorm:"index"` // 关联的模型字段ID，nil 表示手动新增
+	ID             int        `json:"id" gorm:"primaryKey"`
+	VendorModelID  int        `json:"vendor_model_id" gorm:"index;not null"`
+	EndpointFieldID *int      `json:"endpoint_field_id" gorm:"index"` // 关联的端点字段ID，nil 表示手动新增
 	FieldKey      string     `json:"field_key" gorm:"size:128;not null"`
 	FieldName     string     `json:"field_name" gorm:"size:128;not null"`
 	FieldType     string     `json:"field_type" gorm:"size:32;not null;default:'string'"`
@@ -44,34 +44,33 @@ func DeleteVendorModelField(id int) error {
 	return DB.Delete(&VendorModelField{}, id).Error
 }
 
-// SyncFieldsFromModel 从模型同步字段到供应商模型（追加，不覆盖已有）
-func SyncFieldsFromModel(vendorModelID int, modelID int) error {
-	modelFields, err := GetModelFields(modelID)
+// SyncFieldsFromEndpoint 从端点同步字段到供应商模型（追加，不覆盖已有）
+func SyncFieldsFromEndpoint(vendorModelID int, endpointID int) error {
+	epFields, err := GetEndpointFields(endpointID)
 	if err != nil {
 		return err
 	}
 
-	// 获取已有的 field_key
 	existing, _ := GetVendorModelFields(vendorModelID)
 	existingKeys := make(map[string]bool)
 	for _, f := range existing {
 		existingKeys[f.FieldKey] = true
 	}
 
-	for _, mf := range modelFields {
-		if existingKeys[mf.FieldKey] {
-			continue // 跳过已存在的
+	for _, ef := range epFields {
+		if existingKeys[ef.FieldKey] {
+			continue
 		}
-		mfID := mf.ID
+		efID := ef.ID
 		vmf := VendorModelField{
-			VendorModelID: vendorModelID,
-			ModelFieldID:  &mfID,
-			FieldKey:      mf.FieldKey,
-			FieldName:     mf.FieldName,
-			FieldType:     mf.FieldType,
-			Required:      mf.Required,
-			Description:   mf.Description,
-			SortOrder:     mf.SortOrder,
+			VendorModelID:   vendorModelID,
+			EndpointFieldID: &efID,
+			FieldKey:        ef.FieldKey,
+			FieldName:       ef.FieldName,
+			FieldType:       ef.FieldType,
+			Required:        ef.Required,
+			Description:     ef.Description,
+			SortOrder:       ef.SortOrder,
 		}
 		if err := DB.Create(&vmf).Error; err != nil {
 			return err

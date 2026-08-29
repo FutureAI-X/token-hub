@@ -75,3 +75,25 @@ export function deleteModel(id: number) {
     method: 'DELETE',
   })
 }
+
+// ── 模型端点关联 ──
+
+export interface ModelEndpoint {
+  id: number
+  model_id: number
+  endpoint_id: number
+  priority: number
+  endpoint_path: string
+  endpoint_name: string
+}
+
+export function getModelEndpoints(modelId: number) {
+  return request<{ success: boolean; data: ModelEndpoint[] }>(`${BASE}/models/${modelId}/endpoints`)
+}
+
+export function syncModelEndpoints(modelId: number, endpointIds: number[]) {
+  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/endpoints`, {
+    method: 'PUT',
+    body: JSON.stringify({ endpoint_ids: endpointIds }),
+  })
+}

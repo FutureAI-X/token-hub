@@ -9,44 +9,46 @@ import {
   X,
   Link2,
   Settings,
+  Globe,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
-  getVendorModels,
-  createVendorModel,
-  updateVendorModel,
-  updateVendorModelStatus,
-  deleteVendorModel,
-  type VendorModel,
-} from '../../api/vendor-model'
+  getVendorEndpoints,
+  createVendorEndpoint,
+  updateVendorEndpoint,
+  updateVendorEndpointStatus,
+  deleteVendorEndpoint,
+  type VendorEndpoint,
+} from '../../api/vendor-endpoint'
 import { getVendors, type Vendor } from '../../api/vendor'
-import { getModels, type AdminModel } from '../../api/admin-model'
+import { getEndpoints, type Endpoint } from '../../api/endpoint'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
-import { VendorModelFieldManager } from '../../components/admin/VendorModelFieldManager'
+import { VendorEndpointFieldManager } from '../../components/admin/VendorEndpointFieldManager'
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
   2: { label: '已禁用', className: 'bg-red-500/10 text-red-600 dark:text-red-400' },
 }
 
-export function AdminVendorModels() {
-  const [items, setItems] = useState<VendorModel[]>([])
+export function AdminVendorEndpoints() {
+  const [items, setItems] = useState<VendorEndpoint[]>([])
   const [vendors, setVendors] = useState<Vendor[]>([])
-  const [models, setModels] = useState<AdminModel[]>([])
+  const [endpoints, setEndpoints] = useState<Endpoint[]>([])
   const [loading, setLoading] = useState(true)
 
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editRow, setEditRow] = useState<VendorModel | null>(null)
+  const [editRow, setEditRow] = useState<VendorEndpoint | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteRow, setDeleteRow] = useState<VendorModel | null>(null)
+  const [deleteRow, setDeleteRow] = useState<VendorEndpoint | null>(null)
   const [fieldOpen, setFieldOpen] = useState(false)
-  const [fieldRow, setFieldRow] = useState<VendorModel | null>(null)
+  const [fieldRow, setFieldRow] = useState<VendorEndpoint | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   const [formVendor, setFormVendor] = useState('')
-  const [formModel, setFormModel] = useState('')
-  const [formVendorModelId, setFormVendorModelId] = useState('')
+  const [formEndpoint, setFormEndpoint] = useState('')
   const [formPath, setFormPath] = useState('')
+  const [formName, setFormName] = useState('')
+  const [formDesc, setFormDesc] = useState('')
   const [formAsync, setFormAsync] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
@@ -54,53 +56,48 @@ export function AdminVendorModels() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [vmRes, vRes, mRes] = await Promise.all([getVendorModels(), getVendors(), getModels()])
-      if (vmRes.success) setItems(vmRes.data || [])
+      const [veRes, vRes, epRes] = await Promise.all([getVendorEndpoints(), getVendors(), getEndpoints()])
+      if (veRes.success) setItems(veRes.data || [])
       if (vRes.success) setVendors(vRes.data || [])
-      if (mRes.success) setModels(mRes.data || [])
+      if (epRes.success) setEndpoints(epRes.data || [])
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }, [])
 
   useEffect(() => { loadAll() }, [loadAll])
 
-  const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]))
-  const modelMap = Object.fromEntries(models.map(m => [m.id, m.name]))
-
   const openCreate = () => {
     setEditRow(null)
-    setFormVendor(''); setFormModel(''); setFormVendorModelId(''); setFormPath(''); setFormAsync(false); setFormError('')
+    setFormVendor(''); setFormEndpoint(''); setFormPath(''); setFormName(''); setFormDesc(''); setFormAsync(false); setFormError('')
     setDrawerOpen(true)
   }
 
-  const openEdit = (vm: VendorModel) => {
-    setEditRow(vm)
-    setFormVendor(String(vm.vendor_id)); setFormModel(String(vm.model_id))
-    setFormVendorModelId(vm.vendor_model_id); setFormPath(vm.request_path); setFormAsync(vm.is_async); setFormError('')
+  const openEdit = (ve: VendorEndpoint) => {
+    setEditRow(ve)
+    setFormVendor(String(ve.vendor_id)); setFormEndpoint(String(ve.endpoint_id))
+    setFormPath(ve.path); setFormName(ve.name); setFormDesc(ve.description); setFormAsync(ve.is_async); setFormError('')
     setDrawerOpen(true)
   }
 
   const handleSave = async () => {
     if (!formVendor) { setFormError('请选择供应商'); return }
-    if (!formModel) { setFormError('请选择模型'); return }
-    if (!formVendorModelId.trim()) { setFormError('供应商模型ID不能为空'); return }
-
+    if (!formEndpoint) { setFormError('请选择端点'); return }
     setFormSaving(true); setFormError('')
     try {
       if (editRow) {
-        const data: Record<string, string | number> = {}
+        const data: Record<string, string | number | boolean> = {}
         if (Number(formVendor) !== editRow.vendor_id) data.vendor_id = Number(formVendor)
-        if (Number(formModel) !== editRow.model_id) data.model_id = Number(formModel)
-        if (formVendorModelId !== editRow.vendor_model_id) data.vendor_model_id = formVendorModelId
-        if (formPath !== editRow.request_path) data.request_path = formPath
+        if (Number(formEndpoint) !== editRow.endpoint_id) data.endpoint_id = Number(formEndpoint)
+        if (formPath !== editRow.path) data.path = formPath
+        if (formName !== editRow.name) data.name = formName
+        if (formDesc !== editRow.description) data.description = formDesc
         if (formAsync !== editRow.is_async) data.is_async = formAsync
-        const res = await updateVendorModel(editRow.id, data)
+        const res = await updateVendorEndpoint(editRow.id, data)
         if (!res.success) { setFormError(res.message || '更新失败'); return }
       } else {
-        const res = await createVendorModel({
-          vendor_id: Number(formVendor), model_id: Number(formModel),
-          vendor_model_id: formVendorModelId, request_path: formPath,
-          is_async: formAsync,
+        const res = await createVendorEndpoint({
+          vendor_id: Number(formVendor), endpoint_id: Number(formEndpoint),
+          path: formPath, name: formName, description: formDesc, is_async: formAsync,
         })
         if (!res.success) { setFormError(res.message || '创建失败'); return }
       }
@@ -109,53 +106,48 @@ export function AdminVendorModels() {
     finally { setFormSaving(false) }
   }
 
-  const handleToggle = async (vm: VendorModel) => {
+  const handleToggle = async (ve: VendorEndpoint) => {
     setActionLoading(true)
-    try { await updateVendorModelStatus(vm.id, vm.status === 1 ? 2 : 1); loadAll() }
+    try { await updateVendorEndpointStatus(ve.id, ve.status === 1 ? 2 : 1); loadAll() }
     catch { /* ignore */ }
     finally { setActionLoading(false) }
-  }
-
-  // ── 字段管理 ──
-  const openFieldManager = (vm: VendorModel) => {
-    setFieldRow(vm)
-    setFieldOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
     if (!deleteRow) return
     setActionLoading(true)
-    try { await deleteVendorModel(deleteRow.id); setDeleteOpen(false); setDeleteRow(null); loadAll() }
+    try { await deleteVendorEndpoint(deleteRow.id); setDeleteOpen(false); setDeleteRow(null); loadAll() }
     catch { /* ignore */ }
     finally { setActionLoading(false) }
   }
 
   useEffect(() => {
-    if (drawerOpen || deleteOpen) document.body.style.overflow = 'hidden'
+    if (drawerOpen || deleteOpen || fieldOpen) document.body.style.overflow = 'hidden'
     else document.body.style.overflow = ''
     return () => { document.body.style.overflow = '' }
-  }, [drawerOpen, deleteOpen])
+  }, [drawerOpen, deleteOpen, fieldOpen])
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (deleteOpen) setDeleteOpen(false)
+      if (fieldOpen) setFieldOpen(false)
+      else if (deleteOpen) setDeleteOpen(false)
       else if (drawerOpen) setDrawerOpen(false)
     }
     document.addEventListener('keydown', handleEsc)
     return () => document.removeEventListener('keydown', handleEsc)
-  }, [drawerOpen, deleteOpen])
+  }, [drawerOpen, deleteOpen, fieldOpen])
 
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div>
-          <h2 className='text-2xl font-bold tracking-tight'>供应商模型</h2>
-          <p className='text-muted-foreground mt-1 text-sm'>管理供应商与模型的关联关系</p>
+          <h2 className='text-2xl font-bold tracking-tight'>供应商端点</h2>
+          <p className='text-muted-foreground mt-1 text-sm'>管理供应商的端点配置及字段</p>
         </div>
         <button onClick={openCreate}
           className='bg-primary hover:bg-primary/90 inline-flex h-9 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-colors'>
-          <Plus className='size-4' /> 添加关联
+          <Plus className='size-4' /> 添加供应商端点
         </button>
       </div>
 
@@ -166,9 +158,9 @@ export function AdminVendorModels() {
               <tr className='bg-muted/30 border-border/40 border-b'>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商</th>
-                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型</th>
-                <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商模型ID</th>
-                <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>请求路径</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点</th>
+                <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点路径</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>描述</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>异步</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>操作</th>
@@ -176,56 +168,57 @@ export function AdminVendorModels() {
             </thead>
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
-                <tr><td colSpan={7} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
+                <tr><td colSpan={8} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无关联</p></td></tr>
-              ) : items.map((vm) => {
-                const statusConf = STATUS_CONFIG[vm.status] || STATUS_CONFIG[1]
+                <tr><td colSpan={8} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无供应商端点</p></td></tr>
+              ) : items.map((ve) => {
+                const statusConf = STATUS_CONFIG[ve.status] || STATUS_CONFIG[1]
                 return (
-                  <tr key={vm.id} className={cn('hover:bg-muted/20 transition-colors', vm.status === 2 && 'opacity-50')}>
-                    <td className='px-4 py-3'><span className='text-muted-foreground font-mono text-xs'>{vm.id}</span></td>
+                  <tr key={ve.id} className={cn('hover:bg-muted/20 transition-colors', ve.status === 2 && 'opacity-50')}>
+                    <td className='px-4 py-3'><span className='text-muted-foreground font-mono text-xs'>{ve.id}</span></td>
                     <td className='px-4 py-3'>
                       <span className='inline-flex items-center gap-1.5 rounded-md bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600 dark:text-blue-400'>
                         <Link2 className='size-3' />
-                        {vm.vendor_name || `#${vm.vendor_id}`}
+                        {ve.vendor_name || `#${ve.vendor_id}`}
                       </span>
                     </td>
                     <td className='px-4 py-3'>
-                      <span className='font-medium'>{vm.model_name || `#${vm.model_id}`}</span>
+                      <span className='inline-flex items-center gap-1.5 rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400'>
+                        <Globe className='size-3' />
+                        {ve.endpoint_name || `#${ve.endpoint_id}`}
+                      </span>
                     </td>
                     <td className='px-4 py-3'>
-                      <code className='font-mono text-xs break-all'>{vm.vendor_model_id}</code>
+                      <code className='font-mono text-xs break-all'>{ve.path || ve.endpoint_path || '-'}</code>
                     </td>
                     <td className='px-4 py-3'>
-                      <code className='text-muted-foreground font-mono text-xs break-all'>{vm.request_path || '-'}</code>
+                      <span className='text-muted-foreground text-xs'>{ve.description || '-'}</span>
                     </td>
                     <td className='px-4 py-3'>
-                      {vm.is_async ? (
+                      {ve.is_async ? (
                         <span className='rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400'>异步</span>
-                      ) : (
-                        <span className='text-muted-foreground text-xs'>同步</span>
-                      )}
+                      ) : <span className='text-muted-foreground text-xs'>同步</span>}
                     </td>
                     <td className='px-4 py-3'>
                       <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium', statusConf.className)}>
-                        <span className={cn('size-1.5 rounded-full', vm.status === 1 ? 'bg-emerald-500' : 'bg-red-500')} />
+                        <span className={cn('size-1.5 rounded-full', ve.status === 1 ? 'bg-emerald-500' : 'bg-red-500')} />
                         {statusConf.label}
                       </span>
                     </td>
                     <td className='px-4 py-3'>
                       <div className='flex items-center gap-1'>
-                        <button onClick={() => openEdit(vm)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
+                        <button onClick={() => openEdit(ve)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Pencil className='size-3.5' /> 编辑
                         </button>
-                        <button onClick={() => openFieldManager(vm)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
+                        <button onClick={() => { setFieldRow(ve); setFieldOpen(true) }} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Settings className='size-3.5' /> 字段
                         </button>
-                        <button onClick={() => handleToggle(vm)}
+                        <button onClick={() => handleToggle(ve)}
                           className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
-                            vm.status === 1 ? 'hover:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400')}>
-                          {vm.status === 1 ? <><PowerOff className='size-3.5' /> 禁用</> : <><Power className='size-3.5' /> 启用</>}
+                            ve.status === 1 ? 'hover:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400')}>
+                          {ve.status === 1 ? <><PowerOff className='size-3.5' /> 禁用</> : <><Power className='size-3.5' /> 启用</>}
                         </button>
-                        <button onClick={() => { setDeleteRow(vm); setDeleteOpen(true) }}
+                        <button onClick={() => { setDeleteRow(ve); setDeleteOpen(true) }}
                           className='text-destructive hover:bg-destructive/10 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Trash2 className='size-3.5' /> 删除
                         </button>
@@ -245,49 +238,44 @@ export function AdminVendorModels() {
           <div className='bg-background/80 fixed inset-0 backdrop-blur-sm' onClick={() => setDrawerOpen(false)} />
           <div className='bg-background border-border/60 relative z-10 w-full max-w-lg rounded-xl border shadow-lg'>
             <div className='flex items-center justify-between border-b border-border/40 px-6 py-4'>
-              <h2 className='text-lg font-semibold'>{editRow ? '编辑关联' : '添加关联'}</h2>
+              <h2 className='text-lg font-semibold'>{editRow ? '编辑供应商端点' : '添加供应商端点'}</h2>
               <button onClick={() => setDrawerOpen(false)} className='hover:bg-muted rounded-lg p-1.5 transition-colors'><X className='size-4' /></button>
             </div>
             <div className='p-6 space-y-4'>
               {formError && <div className='bg-destructive/10 text-destructive rounded-lg px-4 py-3 text-sm'>{formError}</div>}
-
               <div className='space-y-2'>
                 <label className='text-sm font-medium'>供应商</label>
                 <select value={formVendor} onChange={(e) => setFormVendor(e.target.value)}
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
                   <option value=''>请选择供应商</option>
-                  {vendors.filter(v => v.status === 1).map(v => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
-                  ))}
+                  {vendors.filter(v => v.status === 1).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
               </div>
-
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>模型</label>
-                <select value={formModel} onChange={(e) => setFormModel(e.target.value)}
+                <label className='text-sm font-medium'>端点</label>
+                <select value={formEndpoint} onChange={(e) => setFormEndpoint(e.target.value)}
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
-                  <option value=''>请选择模型</option>
-                  {models.filter(m => m.status === 1).map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.owner})</option>
-                  ))}
+                  <option value=''>请选择端点</option>
+                  {endpoints.filter(e => e.status === 1).map(e => <option key={e.id} value={e.id}>{e.name} ({e.path})</option>)}
                 </select>
               </div>
-
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>供应商模型ID</label>
-                <input type='text' value={formVendorModelId} onChange={(e) => setFormVendorModelId(e.target.value)} placeholder='供应商侧的模型标识'
+                <label className='text-sm font-medium'>端点路径（覆盖）</label>
+                <input type='text' value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder='留空则使用端点默认路径'
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
               </div>
-
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>请求路径</label>
-                <input type='text' value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder='例如: /v1/chat/completions'
+                <label className='text-sm font-medium'>名称（覆盖）</label>
+                <input type='text' value={formName} onChange={(e) => setFormName(e.target.value)} placeholder='留空则使用端点默认名称'
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
               </div>
-
+              <div className='space-y-2'>
+                <label className='text-sm font-medium'>描述</label>
+                <input type='text' value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder='可选'
+                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
+              </div>
               <label className='flex items-center gap-2 text-sm'>
-                <input type='checkbox' checked={formAsync} onChange={(e) => setFormAsync(e.target.checked)}
-                  className='border-border/60 size-4 rounded' />
+                <input type='checkbox' checked={formAsync} onChange={(e) => setFormAsync(e.target.checked)} className='border-border/60 size-4 rounded' />
                 异步模式
               </label>
             </div>
@@ -305,16 +293,17 @@ export function AdminVendorModels() {
       )}
 
       <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title='确认删除'
-        description={<>确定要删除此关联吗？</>}
+        description={<>确定要删除此供应商端点吗？</>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
 
       {fieldRow && (
-        <VendorModelFieldManager
+        <VendorEndpointFieldManager
           open={fieldOpen}
           onOpenChange={setFieldOpen}
-          vendorModelId={fieldRow.id}
+          vendorEndpointId={fieldRow.id}
+          endpointId={fieldRow.endpoint_id}
           vendorName={fieldRow.vendor_name}
-          modelName={fieldRow.model_name}
+          endpointName={fieldRow.endpoint_name || fieldRow.name}
         />
       )}
     </div>
