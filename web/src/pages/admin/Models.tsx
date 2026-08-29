@@ -8,6 +8,7 @@ import {
   Loader2,
   X,
   Box,
+  Settings,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
@@ -19,6 +20,7 @@ import {
   type AdminModel,
 } from '../../api/admin-model'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
+import { FieldManager } from '../../components/admin/FieldManager'
 
 const TYPE_OPTIONS = [
   { value: 'text', label: '文本' },
@@ -48,13 +50,14 @@ export function AdminModels() {
   const [editRow, setEditRow] = useState<AdminModel | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<AdminModel | null>(null)
+  const [fieldOpen, setFieldOpen] = useState(false)
+  const [fieldRow, setFieldRow] = useState<AdminModel | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   // 表单
   const [formName, setFormName] = useState('')
   const [formOwner, setFormOwner] = useState('')
   const [formType, setFormType] = useState('text')
-  const [formPath, setFormPath] = useState('')
   const [formDesc, setFormDesc] = useState('')
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
@@ -72,14 +75,14 @@ export function AdminModels() {
 
   const openCreate = () => {
     setEditRow(null)
-    setFormName(''); setFormOwner(''); setFormType('text'); setFormPath('')
+    setFormName(''); setFormOwner(''); setFormType('text')
     setFormDesc(''); setFormError('')
     setDrawerOpen(true)
   }
 
   const openEdit = (m: AdminModel) => {
     setEditRow(m)
-    setFormName(m.name); setFormOwner(m.owner); setFormType(m.model_type); setFormPath(m.request_path)
+    setFormName(m.name); setFormOwner(m.owner); setFormType(m.model_type)
     setFormDesc(m.description); setFormError('')
     setDrawerOpen(true)
   }
@@ -95,14 +98,13 @@ export function AdminModels() {
         if (formName !== editRow.name) data.name = formName
         if (formOwner !== editRow.owner) data.owner = formOwner
         if (formType !== editRow.model_type) data.model_type = formType
-        if (formPath !== editRow.request_path) data.request_path = formPath
         if (formDesc !== editRow.description) data.description = formDesc
         const res = await updateModel(editRow.id, data)
         if (!res.success) { setFormError(res.message || '更新失败'); return }
       } else {
         const res = await createModel({
           name: formName, owner: formOwner, model_type: formType,
-          request_path: formPath, description: formDesc,
+          description: formDesc,
         })
         if (!res.success) { setFormError(res.message || '创建失败'); return }
       }
@@ -169,7 +171,6 @@ export function AdminModels() {
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型开发者</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>类型</th>
-                <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>请求路径</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>描述</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>操作</th>
@@ -177,9 +178,9 @@ export function AdminModels() {
             </thead>
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
-                <tr><td colSpan={8} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
+                <tr><td colSpan={7} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : models.length === 0 ? (
-                <tr><td colSpan={8} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无模型</p></td></tr>
+                <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无模型</p></td></tr>
               ) : models.map((m) => {
                 const statusConf = STATUS_CONFIG[m.status] || STATUS_CONFIG[1]
                 return (
@@ -194,9 +195,6 @@ export function AdminModels() {
                       </span>
                     </td>
                     <td className='px-4 py-3'>
-                      <code className='text-muted-foreground font-mono text-xs break-all'>{m.request_path || '-'}</code>
-                    </td>
-                    <td className='px-4 py-3'>
                       <span className='text-muted-foreground text-sm'>{m.description || '-'}</span>
                     </td>
                     <td className='px-4 py-3'>
@@ -209,6 +207,9 @@ export function AdminModels() {
                       <div className='flex items-center gap-1'>
                         <button onClick={() => openEdit(m)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Pencil className='size-3.5' /> 编辑
+                        </button>
+                        <button onClick={() => { setFieldRow(m); setFieldOpen(true) }} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
+                          <Settings className='size-3.5' /> 字段
                         </button>
                         <button onClick={() => handleToggle(m)}
                           className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
@@ -262,12 +263,6 @@ export function AdminModels() {
               </div>
 
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>请求路径</label>
-                <input type='text' value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder='例如: /v1/chat/completions'
-                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
-              </div>
-
-              <div className='space-y-2'>
                 <label className='text-sm font-medium'>描述</label>
                 <input type='text' value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder='可选'
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
@@ -290,6 +285,15 @@ export function AdminModels() {
       <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title='确认删除'
         description={<>确定要删除模型 <span className='text-foreground font-semibold'>{deleteRow?.name}</span> 吗？</>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
+
+      {fieldRow && (
+        <FieldManager
+          open={fieldOpen}
+          onOpenChange={setFieldOpen}
+          modelId={fieldRow.id}
+          modelName={fieldRow.name}
+        />
+      )}
     </div>
   )
 }
