@@ -73,12 +73,6 @@ func InitDB() error {
 		common.SysError("failed to create root user: " + err.Error())
 	}
 
-	// 创建默认供应商数据
-	err = createDefaultVendors()
-	if err != nil {
-		common.SysError("failed to create default vendors: " + err.Error())
-	}
-
 	// 创建默认模型数据
 	err = createDefaultModels()
 	if err != nil {

@@ -4,12 +4,36 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"io"
 	"math/big"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+// serverKey 服务端加密密钥（从环境变量派生，用于加密存储敏感数据）
+var serverKey string
+
+func init() {
+	secret := os.Getenv("SECRET_KEY")
+	if secret == "" {
+		secret = "token-hub-secret-change-me"
+	}
+	hash := sha256.Sum256([]byte(secret))
+	serverKey = base64.StdEncoding.EncodeToString(hash[:])
+}
+
+// EncryptSecret 使用服务端密钥加密敏感数据
+func EncryptSecret(plaintext string) (string, error) {
+	return EncryptWithKey(plaintext, serverKey)
+}
+
+// DecryptSecret 使用服务端密钥解密敏感数据
+func DecryptSecret(ciphertext string) (string, error) {
+	return DecryptWithKey(ciphertext, serverKey)
+}
 
 // Password2Hash 将密码转换为 bcrypt 哈希
 func Password2Hash(password string) (string, error) {

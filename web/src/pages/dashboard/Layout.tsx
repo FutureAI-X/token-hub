@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom'
-import { User, Coins, PanelLeft, Users } from 'lucide-react'
+import { User, Coins, PanelLeft, Users, Radio } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { Header } from '../../components/Header'
 
@@ -36,6 +36,7 @@ export function DashboardLayout() {
         group: '管理员',
         items: [
           { title: '用户管理', href: '/dashboard/admin/users', icon: Users },
+          { title: '供应商管理', href: '/dashboard/admin/vendors', icon: Radio },
         ],
       })
     }
