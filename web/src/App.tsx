@@ -18,6 +18,7 @@ import { ApiKeys } from './pages/dashboard/ApiKeys'
 import { AdminUsers } from './pages/admin/Users'
 import { AdminVendors } from './pages/admin/Vendors'
 import { AdminModels } from './pages/admin/Models'
+import { AdminVendorModels } from './pages/admin/VendorModels'
 
 function App() {
   return (
@@ -36,6 +37,7 @@ function App() {
           <Route path='admin/users' element={<AdminUsers />} />
           <Route path='admin/vendors' element={<AdminVendors />} />
           <Route path='admin/models' element={<AdminModels />} />
+          <Route path='admin/vendor-models' element={<AdminVendorModels />} />
         </Route>
       </Routes>
     </HashRouter>

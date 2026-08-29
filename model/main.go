@@ -90,6 +90,8 @@ func migrateDB() error {
 		&Vendor{},
 		&Model{},
 		&ModelField{},
+		&VendorModel{},
+		&VendorModelField{},
 	)
 	if err != nil {
 		return err

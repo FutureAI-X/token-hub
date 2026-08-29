@@ -65,6 +65,18 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.PUT("/vendors/:id/status", controller.AdminUpdateVendorStatus)
 		adminRouter.DELETE("/vendors/:id", controller.AdminDeleteVendor)
 
+		adminRouter.GET("/vendor-models", controller.AdminGetVendorModels)
+		adminRouter.POST("/vendor-models", controller.AdminCreateVendorModel)
+		adminRouter.PUT("/vendor-models/:id", controller.AdminUpdateVendorModel)
+		adminRouter.PUT("/vendor-models/:id/status", controller.AdminUpdateVendorModelStatus)
+		adminRouter.DELETE("/vendor-models/:id", controller.AdminDeleteVendorModel)
+
+		adminRouter.GET("/vendor-models/:id/fields", controller.GetVendorModelFields)
+		adminRouter.POST("/vendor-models/:id/fields/sync", controller.SyncFieldsFromModel)
+		adminRouter.POST("/vendor-models/:id/fields", controller.CreateVMField)
+		adminRouter.PUT("/vendor-models/:id/fields/:fieldId", controller.UpdateVMField)
+		adminRouter.DELETE("/vendor-models/:id/fields/:fieldId", controller.DeleteVMField)
+
 		adminRouter.GET("/models", controller.AdminGetModels)
 		adminRouter.POST("/models", controller.AdminCreateModel)
 		adminRouter.PUT("/models/:id", controller.AdminUpdateModel)
