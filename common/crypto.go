@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"io"
+	"math/big"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,6 +22,17 @@ func Password2Hash(password string) (string, error) {
 func ValidatePasswordAndHash(password string, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
+}
+
+// GenerateRandomPassword 生成指定长度的随机密码
+func GenerateRandomPassword(length int) string {
+	const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$"
+	result := make([]byte, length)
+	for i := range result {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		result[i] = chars[n.Int64()]
+	}
+	return string(result)
 }
 
 // GenerateDataKey 生成 32 字节随机数据密钥，返回 base64 编码字符串

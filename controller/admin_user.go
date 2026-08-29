@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"crypto/rand"
-	"math/big"
 	"net/http"
 	"strconv"
 
@@ -357,17 +355,6 @@ type AdminResetPasswordRequest struct {
 	DataKey string `json:"data_key" binding:"required"`
 }
 
-// generateRandomPassword 生成随机密码
-func generateRandomPassword(length int) string {
-	const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$"
-	result := make([]byte, length)
-	for i := range result {
-		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
-		result[i] = chars[n.Int64()]
-	}
-	return string(result)
-}
-
 // AdminResetPassword 管理员重置用户密码（随机生成，AES-GCM 加密返回）
 func AdminResetPassword(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
@@ -394,7 +381,7 @@ func AdminResetPassword(c *gin.Context) {
 	}
 
 	// 随机生成密码
-	newPassword := generateRandomPassword(12)
+	newPassword := common.GenerateRandomPassword(12)
 
 	// 存储 bcrypt 哈希
 	hashed, err := common.Password2Hash(newPassword)

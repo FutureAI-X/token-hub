@@ -87,13 +87,15 @@ func Login(c *gin.Context) {
 	})
 }
 
-// UpdateEmailRequest 更新邮箱请求
-type UpdateEmailRequest struct {
-	Email string `json:"email" binding:"required"`
+// UpdateProfileRequest 更新个人资料请求
+type UpdateProfileRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
 }
 
-// UpdateEmail 更新当前登录用户邮箱
-func UpdateEmail(c *gin.Context) {
+// UpdateProfile 更新当前登录用户资料
+func UpdateProfile(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -103,28 +105,93 @@ func UpdateEmail(c *gin.Context) {
 		return
 	}
 
-	var req UpdateEmailRequest
+	var req UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "邮箱不能为空",
+			"message": "请求参数无效",
 		})
 		return
 	}
 
-	// 更新邮箱
-	err := model.DB.Model(&model.User{}).Where("id = ?", userID).Update("email", req.Email).Error
+	updates := map[string]interface{}{}
+	if req.Username != "" {
+		updates["username"] = req.Username
+	}
+	if req.DisplayName != "" {
+		updates["display_name"] = req.DisplayName
+	}
+	if req.Email != "" {
+		updates["email"] = req.Email
+	}
+
+	if len(updates) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "没有需要更新的字段",
+		})
+		return
+	}
+
+	err := model.DB.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "更新邮箱失败",
+			"message": "更新失败: " + err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "邮箱更新成功",
+		"message": "资料更新成功",
+	})
+}
+
+// ResetMyPasswordRequest 用户重置自己密码请求
+type ResetMyPasswordRequest struct {
+	DataKey string `json:"data_key" binding:"required"`
+}
+
+// ResetMyPassword 用户重置自己的密码（随机生成，AES-GCM 加密返回）
+func ResetMyPassword(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "未登录"})
+		return
+	}
+
+	var req ResetMyPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请提供 data_key"})
+		return
+	}
+
+	newPassword := common.GenerateRandomPassword(12)
+
+	hashed, err := common.Password2Hash(newPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "密码加密失败"})
+		return
+	}
+
+	if err := model.UpdateUser(userID.(int), map[string]interface{}{"password": hashed}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "重置密码失败"})
+		return
+	}
+
+	encrypted, err := common.EncryptWithKey(newPassword, req.DataKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "密码加密传输失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "密码重置成功",
+		"data": gin.H{
+			"encrypted_password": encrypted,
+		},
 	})
 }
 
