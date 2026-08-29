@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom'
-import { User, Coins, PanelLeft, Users, Radio } from 'lucide-react'
+import { User, Coins, PanelLeft, Users, Radio, Key, Box } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { Header } from '../../components/Header'
 
@@ -28,6 +28,7 @@ export function DashboardLayout() {
         items: [
           { title: '个人资料', href: '/dashboard/profile', icon: User },
           { title: '积分', href: '/dashboard/wallet', icon: Coins },
+          { title: 'API Keys', href: '/dashboard/api-keys', icon: Key },
         ],
       },
     ]
@@ -37,6 +38,7 @@ export function DashboardLayout() {
         items: [
           { title: '用户管理', href: '/dashboard/admin/users', icon: Users },
           { title: '供应商管理', href: '/dashboard/admin/vendors', icon: Radio },
+          { title: '模型管理', href: '/dashboard/admin/models', icon: Box },
         ],
       })
     }

@@ -29,6 +29,12 @@ type Model struct {
 	// 模型所有者/提供商名称（兼容旧数据）
 	Owner string `json:"owner" gorm:"size:64;default:token-hub"`
 
+	// 模型类型：text, image, video, audio
+	ModelType string `json:"model_type" gorm:"size:32;default:'text'"`
+
+	// 模型请求路径（转发到上游的实际路径）
+	RequestPath string `json:"request_path" gorm:"size:256"`
+
 	// 计费类型：0=按量计费(基于token), 1=按次计费
 	QuotaType int `json:"quota_type" gorm:"default:0"`
 
@@ -101,6 +107,43 @@ func GetPricingModels() ([]Model, error) {
 	}
 
 	return models, nil
+}
+
+// AdminGetModels 管理员获取全部模型（含禁用）
+func AdminGetModels() ([]Model, error) {
+	var models []Model
+	err := DB.Order("id ASC").Find(&models).Error
+	return models, err
+}
+
+// GetModelByID 根据 ID 获取模型
+func GetModelByID(id int) (*Model, error) {
+	var m Model
+	err := DB.Where("id = ?", id).First(&m).Error
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+// CreateModel 创建模型
+func CreateModel(m *Model) error {
+	return DB.Create(m).Error
+}
+
+// UpdateModel 更新模型
+func UpdateModel(id int, updates map[string]interface{}) error {
+	return DB.Model(&Model{}).Where("id = ?", id).Updates(updates).Error
+}
+
+// UpdateModelStatus 更新模型状态
+func UpdateModelStatus(id int, status int) error {
+	return DB.Model(&Model{}).Where("id = ?", id).Update("status", status).Error
+}
+
+// DeleteModel 删除模型（软删除）
+func DeleteModel(id int) error {
+	return DB.Delete(&Model{}, id).Error
 }
 
 // createDefaultModels 创建默认模型数据

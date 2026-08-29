@@ -1,7 +1,9 @@
 package model
 
 import (
+	"crypto/rand"
 	"errors"
+	"math/big"
 	"time"
 
 	"github.com/FutureAI/token-hub/common"
@@ -104,6 +106,62 @@ type Token struct {
 
 	// 软删除时间戳
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// GetTokensByUserID 获取用户的 Token 列表
+func GetTokensByUserID(userID int) ([]Token, error) {
+	var tokens []Token
+	err := DB.Where("user_id = ?", userID).Order("id ASC").Find(&tokens).Error
+	return tokens, err
+}
+
+// GetTokenByID 根据 ID 获取 Token
+func GetTokenByID(id int) (*Token, error) {
+	var token Token
+	err := DB.Where("id = ?", id).First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+// CreateToken 创建 Token
+func CreateToken(token *Token) error {
+	return DB.Create(token).Error
+}
+
+// UpdateTokenName 更新 Token 名称
+func UpdateTokenName(id int, name string) error {
+	return DB.Model(&Token{}).Where("id = ?", id).Update("name", name).Error
+}
+
+// DeleteToken 删除 Token（软删除）
+func DeleteToken(id int) error {
+	return DB.Delete(&Token{}, id).Error
+}
+
+// IsTokenKeyExists 检查 Token Key 是否已存在
+func IsTokenKeyExists(key string) bool {
+	var count int64
+	DB.Model(&Token{}).Where("key = ?", key).Count(&count)
+	return count > 0
+}
+
+// GenerateUniqueTokenKey 生成唯一的 Token Key（sk- + 32位小写字母数字）
+func GenerateUniqueTokenKey() (string, error) {
+	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+	for i := 0; i < 10; i++ { // 最多重试10次
+		result := make([]byte, 32)
+		for j := range result {
+			n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+			result[j] = chars[n.Int64()]
+		}
+		key := "sk-" + string(result)
+		if !IsTokenKeyExists(key) {
+			return key, nil
+		}
+	}
+	return "", errors.New("failed to generate unique token key")
 }
 
 // ValidateAndFill 验证用户名密码并填充用户信息

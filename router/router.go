@@ -33,6 +33,11 @@ func SetRouter(server *gin.Engine) {
 		userRouter.GET("/info", controller.GetUserInfo)
 		userRouter.PUT("/profile", controller.UpdateProfile)
 		userRouter.PUT("/password", controller.ResetMyPassword)
+
+		userRouter.GET("/tokens", controller.GetTokens)
+		userRouter.POST("/tokens", controller.CreateToken)
+		userRouter.PUT("/tokens/:id", controller.UpdateToken)
+		userRouter.DELETE("/tokens/:id", controller.DeleteToken)
 	}
 
 	// API 路由组（OpenAI 兼容格式）
@@ -59,5 +64,11 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.PUT("/vendors/:id", controller.AdminUpdateVendor)
 		adminRouter.PUT("/vendors/:id/status", controller.AdminUpdateVendorStatus)
 		adminRouter.DELETE("/vendors/:id", controller.AdminDeleteVendor)
+
+		adminRouter.GET("/models", controller.AdminGetModels)
+		adminRouter.POST("/models", controller.AdminCreateModel)
+		adminRouter.PUT("/models/:id", controller.AdminUpdateModel)
+		adminRouter.PUT("/models/:id/status", controller.AdminUpdateModelStatus)
+		adminRouter.DELETE("/models/:id", controller.AdminDeleteModel)
 	}
 }
