@@ -37,8 +37,8 @@ export function DashboardLayout() {
         group: '管理员',
         items: [
           { title: '用户管理', href: '/dashboard/admin/users', icon: Users },
-          { title: '供应商管理', href: '/dashboard/admin/vendors', icon: Radio },
           { title: '模型管理', href: '/dashboard/admin/models', icon: Box },
+          { title: '供应商管理', href: '/dashboard/admin/vendors', icon: Radio },
         ],
       })
     }
