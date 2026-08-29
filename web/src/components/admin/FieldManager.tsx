@@ -35,6 +35,7 @@ interface FieldManagerProps {
 export function FieldManager({ open, onOpenChange, modelId, modelName }: FieldManagerProps) {
   const [fields, setFields] = useState<ModelField[]>([])
   const [loading, setLoading] = useState(false)
+  const [section, setSection] = useState<'request' | 'response'>('request')
 
   const [editingId, setEditingId] = useState<number | null>(null)
   const [adding, setAdding] = useState(false)
@@ -50,13 +51,13 @@ export function FieldManager({ open, onOpenChange, modelId, modelName }: FieldMa
   const loadFields = async () => {
     setLoading(true)
     try {
-      const res = await getModelFields(modelId)
+      const res = await getModelFields(modelId, section)
       if (res.success) setFields(res.data || [])
     } catch { /* ignore */ }
     finally { setLoading(false) }
   }
 
-  useEffect(() => { if (open) loadFields() }, [open, modelId])
+  useEffect(() => { if (open) loadFields() }, [open, modelId, section])
 
   useEffect(() => {
     if (open) document.body.style.overflow = 'hidden'
@@ -95,7 +96,7 @@ export function FieldManager({ open, onOpenChange, modelId, modelName }: FieldMa
       if (adding) {
         const res = await createModelField(modelId, {
           field_key: fKey, field_name: fName, field_type: fType,
-          required: fRequired, description: fDesc,
+          required: fRequired, description: fDesc, section,
         })
         if (!res.success) { setError(res.message || '创建失败'); return }
       } else if (editingId) {
@@ -181,6 +182,27 @@ export function FieldManager({ open, onOpenChange, modelId, modelName }: FieldMa
           <button onClick={() => onOpenChange(false)} className='hover:bg-muted rounded-lg p-1.5 transition-colors'>
             <X className='size-4' />
           </button>
+        </div>
+
+        {/* Tab 切换 */}
+        <div className='border-border/40 flex gap-1 border-b px-6'>
+          {(['request', 'response'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => { setSection(s); cancelEdit() }}
+              className={cn(
+                'relative px-4 py-2.5 text-sm font-medium transition-colors',
+                section === s
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {s === 'request' ? '请求体字段' : '响应体字段'}
+              {section === s && (
+                <span className='bg-primary absolute inset-x-0 -bottom-px h-0.5' />
+              )}
+            </button>
+          ))}
         </div>
 
         {/* 表格 */}

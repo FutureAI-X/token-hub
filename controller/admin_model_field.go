@@ -16,7 +16,8 @@ func GetModelFields(c *gin.Context) {
 		return
 	}
 
-	fields, err := model.GetModelFields(modelID)
+	section := c.Query("section") // 可选：request 或 response
+	fields, err := model.GetModelFields(modelID, section)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取字段列表失败"})
 		return
@@ -33,6 +34,7 @@ type CreateModelFieldRequest struct {
 	Required    bool   `json:"required"`
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
+	Section     string `json:"section"` // request 或 response，默认 request
 }
 
 // CreateModelField 创建模型字段
@@ -57,8 +59,14 @@ func CreateModelField(c *gin.Context) {
 		return
 	}
 
+	section := req.Section
+	if section != "response" {
+		section = "request"
+	}
+
 	field := model.ModelField{
 		ModelID:     modelID,
+		Section:     section,
 		FieldKey:    req.FieldKey,
 		FieldName:   req.FieldName,
 		FieldType:   req.FieldType,

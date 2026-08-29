@@ -16,6 +16,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export interface ModelField {
   id: number
   model_id: number
+  section: string
   field_key: string
   field_name: string
   field_type: string
@@ -24,8 +25,9 @@ export interface ModelField {
   sort_order: number
 }
 
-export function getModelFields(modelId: number) {
-  return request<{ success: boolean; data: ModelField[] }>(`${BASE}/models/${modelId}/fields`)
+export function getModelFields(modelId: number, section?: string) {
+  const query = section ? `?section=${section}` : ''
+  return request<{ success: boolean; data: ModelField[] }>(`${BASE}/models/${modelId}/fields${query}`)
 }
 
 export function createModelField(modelId: number, data: {
@@ -35,6 +37,7 @@ export function createModelField(modelId: number, data: {
   required: boolean
   description?: string
   sort_order?: number
+  section?: string
 }) {
   return request<{ success: boolean; message: string; data?: ModelField }>(`${BASE}/models/${modelId}/fields`, {
     method: 'POST',
