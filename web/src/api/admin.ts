@@ -54,6 +54,14 @@ export function createUser(data: {
   })
 }
 
+// ── 更新用户 ──
+export function updateUser(id: number, data: { username?: string; display_name?: string; password?: string }) {
+  return request<{ success: boolean; message: string }>(`${BASE}/users/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
 // ── 删除用户 ──
 export function deleteUser(id: number) {
   return request<{ success: boolean; message: string }>(`${BASE}/users/${id}`, {
@@ -74,5 +82,13 @@ export function adjustUserQuota(id: number, mode: string, value: number) {
   return request<{ success: boolean; message: string }>(`${BASE}/users/${id}/quota`, {
     method: 'PUT',
     body: JSON.stringify({ mode, value }),
+  })
+}
+
+// ── 重置密码 ──
+export function resetUserPassword(id: number, dataKey: string) {
+  return request<{ success: boolean; message: string; data?: { encrypted_password: string } }>(`${BASE}/users/${id}/password`, {
+    method: 'PUT',
+    body: JSON.stringify({ data_key: dataKey }),
   })
 }

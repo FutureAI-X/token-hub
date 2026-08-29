@@ -7,6 +7,9 @@ import {
   Power,
   PowerOff,
   Coins,
+  KeyRound,
+  Copy,
+  Check,
   Loader2,
   ChevronLeft,
   ChevronRight,
@@ -15,12 +18,15 @@ import {
   User as UserIcon,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { decryptWithKey } from '../../lib/crypto'
 import {
   getUsers,
   createUser,
+  updateUser,
   deleteUser,
   updateUserStatus,
   adjustUserQuota,
+  resetUserPassword,
   type AdminUser,
 } from '../../api/admin'
 import { UserDrawer } from '../../components/admin/UserDrawer'
@@ -58,6 +64,11 @@ export function AdminUsers() {
   const [deleteRow, setDeleteRow] = useState<AdminUser | null>(null)
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false)
   const [quotaRow, setQuotaRow] = useState<AdminUser | null>(null)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [resetRow, setResetRow] = useState<AdminUser | null>(null)
+  const [resetResultOpen, setResetResultOpen] = useState(false)
+  const [resetPassword, setResetPassword] = useState('')
+  const [copied, setCopied] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   const totalPages = Math.ceil(total / pageSize)
@@ -107,8 +118,18 @@ export function AdminUsers() {
     quota: number
   }) => {
     if (editRow) {
-      setDrawerOpen(false)
-      loadUsers()
+      const updateData: { username?: string; display_name?: string; password?: string } = {}
+      if (data.username !== editRow.username) updateData.username = data.username
+      if (data.display_name !== editRow.display_name) updateData.display_name = data.display_name
+      if (data.password) updateData.password = data.password
+
+      const res = await updateUser(editRow.id, updateData)
+      if (res.success) {
+        setDrawerOpen(false)
+        loadUsers()
+      } else {
+        throw new Error(res.message || '更新失败')
+      }
     } else {
       const res = await createUser(data)
       if (res.success) {
@@ -178,6 +199,49 @@ export function AdminUsers() {
     }
   }
 
+  // ── 密码重置 ──
+  const handleResetClick = (user: AdminUser) => {
+    setResetRow(user)
+    setResetDialogOpen(true)
+  }
+
+  const handleResetConfirm = async () => {
+    if (!resetRow) return
+    setActionLoading(true)
+    try {
+      const dataKey = localStorage.getItem('data_key') || ''
+      const res = await resetUserPassword(resetRow.id, dataKey)
+      if (res.success && res.data?.encrypted_password) {
+        const password = await decryptWithKey(res.data.encrypted_password, dataKey)
+        setResetPassword(password)
+        setCopied(false)
+        setResetDialogOpen(false)
+        setResetResultOpen(true)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleCopyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(resetPassword)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      const input = document.createElement('input')
+      input.value = resetPassword
+      document.body.appendChild(input)
+      input.select()
+      document.execCommand('copy')
+      document.body.removeChild(input)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   return (
     <div className='space-y-6'>
       {/* 页面标题 */}
@@ -227,6 +291,7 @@ export function AdminUsers() {
               <tr className='bg-muted/30 border-border/40 border-b'>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>用户名</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>显示名称</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>角色</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>积分</th>
@@ -240,14 +305,14 @@ export function AdminUsers() {
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className='px-4 py-12 text-center'>
+                  <td colSpan={9} className='px-4 py-12 text-center'>
                     <Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' />
                     <p className='text-muted-foreground mt-2 text-sm'>加载中...</p>
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className='px-4 py-12 text-center'>
+                  <td colSpan={9} className='px-4 py-12 text-center'>
                     <p className='text-muted-foreground text-sm'>暂无用户数据</p>
                   </td>
                 </tr>
@@ -270,12 +335,10 @@ export function AdminUsers() {
                         <span className='text-muted-foreground font-mono text-xs'>{user.id}</span>
                       </td>
                       <td className='px-4 py-3'>
-                        <div className='flex flex-col gap-0.5'>
-                          <span className='font-medium'>{user.username}</span>
-                          {user.display_name && user.display_name !== user.username && (
-                            <span className='text-muted-foreground text-xs'>{user.display_name}</span>
-                          )}
-                        </div>
+                        <span className='font-medium'>{user.username}</span>
+                      </td>
+                      <td className='px-4 py-3'>
+                        <span className='text-muted-foreground text-sm'>{user.display_name || '-'}</span>
                       </td>
                       <td className='px-4 py-3'>
                         <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium', roleConf.className)}>
@@ -312,6 +375,16 @@ export function AdminUsers() {
                           >
                             <Coins className='size-3.5' />
                             积分
+                          </button>
+
+                          {/* 密码重置 */}
+                          <button
+                            onClick={() => handleResetClick(user)}
+                            disabled={isRoot}
+                            className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50'
+                          >
+                            <KeyRound className='size-3.5' />
+                            密码重置
                           </button>
 
                           {/* 编辑 */}
@@ -459,6 +532,57 @@ export function AdminUsers() {
         loading={actionLoading}
         onConfirm={handleQuotaConfirm}
       />
+
+      {/* 密码重置确认弹窗 */}
+      <ConfirmDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        title='重置密码'
+        description={
+          <>
+            确定要重置用户 <span className='text-foreground font-semibold'>{resetRow?.username}</span> 的密码吗？系统将自动生成随机密码。
+          </>
+        }
+        confirmText='重置密码'
+        destructive
+        loading={actionLoading}
+        onConfirm={handleResetConfirm}
+      />
+
+      {/* 密码重置结果弹窗 */}
+      {resetResultOpen && (
+        <div className='fixed inset-0 z-[100] flex items-center justify-center'>
+          <div className='bg-background/80 fixed inset-0 backdrop-blur-sm' onClick={() => setResetResultOpen(false)} />
+          <div className='bg-background border-border/60 relative z-10 w-full max-w-md rounded-xl border p-6 shadow-lg'>
+            <h2 className='text-lg font-semibold'>密码重置成功</h2>
+            <p className='text-muted-foreground mt-2 text-sm'>
+              用户 <span className='text-foreground font-medium'>{resetRow?.username}</span> 的新密码：
+            </p>
+            <div className='bg-muted/30 mt-4 flex items-center gap-2 rounded-lg px-4 py-3'>
+              <code className='flex-1 font-mono text-sm break-all select-all'>{resetPassword}</code>
+              <button
+                onClick={handleCopyPassword}
+                className='hover:bg-muted shrink-0 rounded-lg p-1.5 transition-colors'
+                title='复制密码'
+              >
+                {copied ? (
+                  <Check className='size-4 text-emerald-500' />
+                ) : (
+                  <Copy className='size-4 text-muted-foreground' />
+                )}
+              </button>
+            </div>
+            <div className='mt-6 flex justify-end'>
+              <button
+                onClick={() => setResetResultOpen(false)}
+                className='bg-primary hover:bg-primary/90 inline-flex h-9 items-center justify-center rounded-lg px-4 text-sm font-medium text-white transition-colors'
+              >
+                我已保存，关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

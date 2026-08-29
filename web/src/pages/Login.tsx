@@ -25,8 +25,9 @@ export function Login() {
       const data = await res.json()
 
       if (data.success) {
-        // 保存 token 到 localStorage
+        // 保存认证信息到 localStorage
         localStorage.setItem('token', data.data.token)
+        localStorage.setItem('data_key', data.data.data_key)
         localStorage.setItem('user', JSON.stringify(data.data.user))
         // 跳转到主页
         navigate('/')

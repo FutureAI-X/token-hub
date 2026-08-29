@@ -57,11 +57,22 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// 生成数据加密密钥
+	dataKey, err := common.GenerateDataKey()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "生成密钥失败",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "登录成功",
 		"data": gin.H{
-			"token": token,
+			"token":     token,
+			"data_key":  dataKey,
 			"user": gin.H{
 				"id":           user.ID,
 				"username":     user.Username,

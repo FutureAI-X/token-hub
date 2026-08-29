@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"crypto/rand"
+	"math/big"
 	"net/http"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
@@ -122,6 +125,67 @@ func AdminCreateUser(c *gin.Context) {
 		"success": true,
 		"message": "用户创建成功",
 	})
+}
+
+// AdminUpdateUserRequest 更新用户请求
+type AdminUpdateUserRequest struct {
+	Username    string `json:"username"`
+	DisplayName string `json:"display_name"`
+	Password    string `json:"password"`
+}
+
+// AdminUpdateUser 管理员更新用户信息
+func AdminUpdateUser(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的用户ID"})
+		return
+	}
+
+	var req AdminUpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请求参数无效"})
+		return
+	}
+
+	user, err := model.GetUserByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "用户不存在"})
+		return
+	}
+
+	if user.Role >= model.RoleRootUser {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "不允许修改超级管理员"})
+		return
+	}
+
+	updates := map[string]interface{}{}
+	if req.Username != "" {
+		updates["username"] = req.Username
+	}
+	if req.DisplayName != "" {
+		updates["display_name"] = req.DisplayName
+	}
+	if req.Password != "" {
+		hashed, err := common.Password2Hash(req.Password)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "密码加密失败"})
+			return
+		}
+		updates["password"] = hashed
+	}
+
+	if len(updates) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "没有需要更新的字段"})
+		return
+	}
+
+	if err := model.UpdateUser(id, updates); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "更新用户失败: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "用户更新成功"})
 }
 
 // AdminDeleteUser 管理员删除用户
@@ -285,5 +349,77 @@ func AdminAdjustUserQuota(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "积分调整成功",
+	})
+}
+
+// AdminResetPasswordRequest 重置密码请求
+type AdminResetPasswordRequest struct {
+	DataKey string `json:"data_key" binding:"required"`
+}
+
+// generateRandomPassword 生成随机密码
+func generateRandomPassword(length int) string {
+	const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$"
+	result := make([]byte, length)
+	for i := range result {
+		n, _ := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		result[i] = chars[n.Int64()]
+	}
+	return string(result)
+}
+
+// AdminResetPassword 管理员重置用户密码（随机生成，AES-GCM 加密返回）
+func AdminResetPassword(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的用户ID"})
+		return
+	}
+
+	var req AdminResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请提供 data_key"})
+		return
+	}
+
+	user, err := model.GetUserByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "用户不存在"})
+		return
+	}
+
+	if user.Role >= model.RoleRootUser {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "不允许重置超级管理员密码"})
+		return
+	}
+
+	// 随机生成密码
+	newPassword := generateRandomPassword(12)
+
+	// 存储 bcrypt 哈希
+	hashed, err := common.Password2Hash(newPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "密码加密失败"})
+		return
+	}
+
+	if err := model.UpdateUser(id, map[string]interface{}{"password": hashed}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "重置密码失败"})
+		return
+	}
+
+	// AES-GCM 加密明文密码后返回
+	encrypted, err := common.EncryptWithKey(newPassword, req.DataKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "密码加密传输失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "密码重置成功",
+		"data": gin.H{
+			"encrypted_password": encrypted,
+		},
 	})
 }

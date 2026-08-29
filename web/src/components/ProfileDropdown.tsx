@@ -40,6 +40,7 @@ export function ProfileDropdown({ user }: ProfileDropdownProps) {
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('data_key')
     localStorage.removeItem('user')
     navigate('/login')
   }

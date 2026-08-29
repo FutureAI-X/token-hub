@@ -123,9 +123,8 @@ export function UserDrawer({ open, onOpenChange, currentRow, onSubmit }: UserDra
               type='text'
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={isEdit}
               placeholder='请输入用户名'
-              className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50'
+              className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'
             />
           </div>
 

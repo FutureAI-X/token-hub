@@ -171,7 +171,7 @@ func GetUsers(page, pageSize int, keyword string) ([]User, int64, error) {
 	}
 
 	offset := (page - 1) * pageSize
-	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
+	if err := query.Order("id ASC").Offset(offset).Limit(pageSize).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -196,6 +196,11 @@ func AdminDeleteUser(id int) error {
 // UpdateUserStatus 更新用户状态
 func UpdateUserStatus(id int, status int) error {
 	return DB.Model(&User{}).Where("id = ?", id).Update("status", status).Error
+}
+
+// UpdateUser 更新用户信息
+func UpdateUser(id int, updates map[string]interface{}) error {
+	return DB.Model(&User{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // AdjustUserQuota 调整用户积分
