@@ -35,6 +35,16 @@ func GetEndpointByID(id int) (*Endpoint, error) {
 	return &ep, nil
 }
 
+// GetEndpointByPath 根据路径获取端点
+func GetEndpointByPath(path string) (*Endpoint, error) {
+	var ep Endpoint
+	err := DB.Where("path = ? AND status = ?", path, 1).First(&ep).Error
+	if err != nil {
+		return nil, err
+	}
+	return &ep, nil
+}
+
 // CreateEndpoint 创建端点
 func CreateEndpoint(ep *Endpoint) error {
 	return DB.Create(ep).Error

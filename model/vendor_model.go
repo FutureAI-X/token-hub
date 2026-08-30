@@ -87,3 +87,10 @@ func UpdateVendorModelStatus(id int, status int) error {
 func DeleteVendorModel(id int) error {
 	return DB.Delete(&VendorModel{}, id).Error
 }
+
+// GetVendorModelsByModelID 根据模型ID获取可用的供应商模型列表
+func GetVendorModelsByModelID(modelID int) ([]VendorModel, error) {
+	var items []VendorModel
+	err := DB.Where("model_id = ? AND status = ?", modelID, 1).Find(&items).Error
+	return items, err
+}

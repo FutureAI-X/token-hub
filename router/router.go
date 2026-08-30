@@ -40,11 +40,14 @@ func SetRouter(server *gin.Engine) {
 		userRouter.DELETE("/tokens/:id", controller.DeleteToken)
 	}
 
-	// API 路由组（OpenAI 兼容格式）
+	// API 路由组
 	apiRouter := server.Group("/v1")
 	{
 		// 模型列表接口
 		apiRouter.GET("/models", controller.ListModels)
+
+		// 图像生成
+		apiRouter.POST("/images/generations", controller.ImageGenerate)
 	}
 
 	// 管理员接口

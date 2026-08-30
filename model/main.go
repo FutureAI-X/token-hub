@@ -92,6 +92,7 @@ func migrateDB() error {
 		&VendorModel{},
 		&Endpoint{},
 		&ModelEndpoint{},
+		&Task{},
 	)
 	if err != nil {
 		return err
