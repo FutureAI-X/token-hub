@@ -8,7 +8,6 @@ import {
   Loader2,
   X,
   Link2,
-  Settings,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
@@ -22,7 +21,6 @@ import {
 import { getVendors, type Vendor } from '../../api/vendor'
 import { getModels, type AdminModel } from '../../api/admin-model'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
-import { VendorModelFieldManager } from '../../components/admin/VendorModelFieldManager'
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
@@ -39,15 +37,11 @@ export function AdminVendorModels() {
   const [editRow, setEditRow] = useState<VendorModel | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<VendorModel | null>(null)
-  const [fieldOpen, setFieldOpen] = useState(false)
-  const [fieldRow, setFieldRow] = useState<VendorModel | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   const [formVendor, setFormVendor] = useState('')
   const [formModel, setFormModel] = useState('')
   const [formVendorModelId, setFormVendorModelId] = useState('')
-  const [formPath, setFormPath] = useState('')
-  const [formAsync, setFormAsync] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
 
@@ -64,19 +58,16 @@ export function AdminVendorModels() {
 
   useEffect(() => { loadAll() }, [loadAll])
 
-  const vendorMap = Object.fromEntries(vendors.map(v => [v.id, v.name]))
-  const modelMap = Object.fromEntries(models.map(m => [m.id, m.name]))
-
   const openCreate = () => {
     setEditRow(null)
-    setFormVendor(''); setFormModel(''); setFormVendorModelId(''); setFormPath(''); setFormAsync(false); setFormError('')
+    setFormVendor(''); setFormModel(''); setFormVendorModelId(''); setFormError('')
     setDrawerOpen(true)
   }
 
   const openEdit = (vm: VendorModel) => {
     setEditRow(vm)
     setFormVendor(String(vm.vendor_id)); setFormModel(String(vm.model_id))
-    setFormVendorModelId(vm.vendor_model_id); setFormPath(vm.request_path); setFormAsync(vm.is_async); setFormError('')
+    setFormVendorModelId(vm.vendor_model_id); setFormError('')
     setDrawerOpen(true)
   }
 
@@ -92,15 +83,12 @@ export function AdminVendorModels() {
         if (Number(formVendor) !== editRow.vendor_id) data.vendor_id = Number(formVendor)
         if (Number(formModel) !== editRow.model_id) data.model_id = Number(formModel)
         if (formVendorModelId !== editRow.vendor_model_id) data.vendor_model_id = formVendorModelId
-        if (formPath !== editRow.request_path) data.request_path = formPath
-        if (formAsync !== editRow.is_async) data.is_async = formAsync
         const res = await updateVendorModel(editRow.id, data)
         if (!res.success) { setFormError(res.message || '更新失败'); return }
       } else {
         const res = await createVendorModel({
           vendor_id: Number(formVendor), model_id: Number(formModel),
-          vendor_model_id: formVendorModelId, request_path: formPath,
-          is_async: formAsync,
+          vendor_model_id: formVendorModelId,
         })
         if (!res.success) { setFormError(res.message || '创建失败'); return }
       }
@@ -114,12 +102,6 @@ export function AdminVendorModels() {
     try { await updateVendorModelStatus(vm.id, vm.status === 1 ? 2 : 1); loadAll() }
     catch { /* ignore */ }
     finally { setActionLoading(false) }
-  }
-
-  // ── 字段管理 ──
-  const openFieldManager = (vm: VendorModel) => {
-    setFieldRow(vm)
-    setFieldOpen(true)
   }
 
   const handleDeleteConfirm = async () => {
@@ -166,19 +148,17 @@ export function AdminVendorModels() {
               <tr className='bg-muted/30 border-border/40 border-b'>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商</th>
-                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型</th>
                 <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商模型ID</th>
-                <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>请求路径</th>
-                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>异步</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>操作</th>
               </tr>
             </thead>
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
-                <tr><td colSpan={7} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
+                <tr><td colSpan={6} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无关联</p></td></tr>
+                <tr><td colSpan={6} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无关联</p></td></tr>
               ) : items.map((vm) => {
                 const statusConf = STATUS_CONFIG[vm.status] || STATUS_CONFIG[1]
                 return (
@@ -191,20 +171,10 @@ export function AdminVendorModels() {
                       </span>
                     </td>
                     <td className='px-4 py-3'>
-                      <span className='font-medium'>{vm.model_name || `#${vm.model_id}`}</span>
-                    </td>
-                    <td className='px-4 py-3'>
                       <code className='font-mono text-xs break-all'>{vm.vendor_model_id}</code>
                     </td>
                     <td className='px-4 py-3'>
-                      <code className='text-muted-foreground font-mono text-xs break-all'>{vm.request_path || '-'}</code>
-                    </td>
-                    <td className='px-4 py-3'>
-                      {vm.is_async ? (
-                        <span className='rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400'>异步</span>
-                      ) : (
-                        <span className='text-muted-foreground text-xs'>同步</span>
-                      )}
+                      <span className='font-medium'>{vm.model_name || `#${vm.model_id}`}</span>
                     </td>
                     <td className='px-4 py-3'>
                       <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium', statusConf.className)}>
@@ -216,9 +186,6 @@ export function AdminVendorModels() {
                       <div className='flex items-center gap-1'>
                         <button onClick={() => openEdit(vm)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Pencil className='size-3.5' /> 编辑
-                        </button>
-                        <button onClick={() => openFieldManager(vm)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
-                          <Settings className='size-3.5' /> 字段
                         </button>
                         <button onClick={() => handleToggle(vm)}
                           className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
@@ -263,6 +230,12 @@ export function AdminVendorModels() {
               </div>
 
               <div className='space-y-2'>
+                <label className='text-sm font-medium'>供应商模型ID</label>
+                <input type='text' value={formVendorModelId} onChange={(e) => setFormVendorModelId(e.target.value)} placeholder='供应商侧的模型标识'
+                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
+              </div>
+
+              <div className='space-y-2'>
                 <label className='text-sm font-medium'>模型</label>
                 <select value={formModel} onChange={(e) => setFormModel(e.target.value)}
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
@@ -272,24 +245,6 @@ export function AdminVendorModels() {
                   ))}
                 </select>
               </div>
-
-              <div className='space-y-2'>
-                <label className='text-sm font-medium'>供应商模型ID</label>
-                <input type='text' value={formVendorModelId} onChange={(e) => setFormVendorModelId(e.target.value)} placeholder='供应商侧的模型标识'
-                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
-              </div>
-
-              <div className='space-y-2'>
-                <label className='text-sm font-medium'>请求路径</label>
-                <input type='text' value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder='例如: /v1/chat/completions'
-                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
-              </div>
-
-              <label className='flex items-center gap-2 text-sm'>
-                <input type='checkbox' checked={formAsync} onChange={(e) => setFormAsync(e.target.checked)}
-                  className='border-border/60 size-4 rounded' />
-                异步模式
-              </label>
             </div>
             <div className='flex justify-end gap-3 border-t border-border/40 px-6 py-4'>
               <button onClick={() => setDrawerOpen(false)} disabled={formSaving}
@@ -307,16 +262,6 @@ export function AdminVendorModels() {
       <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title='确认删除'
         description={<>确定要删除此关联吗？</>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
-
-      {fieldRow && (
-        <VendorModelFieldManager
-          open={fieldOpen}
-          onOpenChange={setFieldOpen}
-          vendorModelId={fieldRow.id}
-          vendorName={fieldRow.vendor_name}
-          modelName={fieldRow.model_name}
-        />
-      )}
     </div>
   )
 }

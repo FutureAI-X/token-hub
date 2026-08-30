@@ -7,7 +7,6 @@ import {
   PowerOff,
   Loader2,
   X,
-  Settings,
   Globe,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
@@ -20,7 +19,6 @@ import {
   type Endpoint,
 } from '../../api/endpoint'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
-import { FieldManager } from '../../components/admin/FieldManager'
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
@@ -35,8 +33,6 @@ export function AdminEndpoints() {
   const [editRow, setEditRow] = useState<Endpoint | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<Endpoint | null>(null)
-  const [fieldOpen, setFieldOpen] = useState(false)
-  const [fieldRow, setFieldRow] = useState<Endpoint | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   const [formPath, setFormPath] = useState('')
@@ -105,28 +101,27 @@ export function AdminEndpoints() {
   }
 
   useEffect(() => {
-    if (drawerOpen || deleteOpen || fieldOpen) document.body.style.overflow = 'hidden'
+    if (drawerOpen || deleteOpen) document.body.style.overflow = 'hidden'
     else document.body.style.overflow = ''
     return () => { document.body.style.overflow = '' }
-  }, [drawerOpen, deleteOpen, fieldOpen])
+  }, [drawerOpen, deleteOpen])
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
-      if (fieldOpen) setFieldOpen(false)
-      else if (deleteOpen) setDeleteOpen(false)
+      if (deleteOpen) setDeleteOpen(false)
       else if (drawerOpen) setDrawerOpen(false)
     }
     document.addEventListener('keydown', handleEsc)
     return () => document.removeEventListener('keydown', handleEsc)
-  }, [drawerOpen, deleteOpen, fieldOpen])
+  }, [drawerOpen, deleteOpen])
 
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div>
           <h2 className='text-2xl font-bold tracking-tight'>端点管理</h2>
-          <p className='text-muted-foreground mt-1 text-sm'>管理 API 端点及其字段定义</p>
+          <p className='text-muted-foreground mt-1 text-sm'>管理 API 端点</p>
         </div>
         <button onClick={openCreate}
           className='bg-primary hover:bg-primary/90 inline-flex h-9 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium text-white transition-colors'>
@@ -175,9 +170,6 @@ export function AdminEndpoints() {
                       <div className='flex items-center gap-1'>
                         <button onClick={() => openEdit(ep)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Pencil className='size-3.5' /> 编辑
-                        </button>
-                        <button onClick={() => { setFieldRow(ep); setFieldOpen(true) }} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
-                          <Settings className='size-3.5' /> 字段
                         </button>
                         <button onClick={() => handleToggle(ep)}
                           className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
@@ -241,15 +233,6 @@ export function AdminEndpoints() {
       <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title='确认删除'
         description={<>确定要删除端点 <span className='text-foreground font-semibold'>{deleteRow?.name}</span> 吗？</>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
-
-      {fieldRow && (
-        <FieldManager
-          open={fieldOpen}
-          onOpenChange={setFieldOpen}
-          endpointId={fieldRow.id}
-          endpointName={fieldRow.name}
-        />
-      )}
     </div>
   )
 }

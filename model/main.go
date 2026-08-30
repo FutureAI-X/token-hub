@@ -89,14 +89,9 @@ func migrateDB() error {
 		&Token{},
 		&Vendor{},
 		&Model{},
-		&ModelField{},
 		&VendorModel{},
-		&VendorModelField{},
 		&Endpoint{},
-		&EndpointField{},
 		&ModelEndpoint{},
-		&VendorEndpoint{},
-		&VendorEndpointField{},
 	)
 	if err != nil {
 		return err

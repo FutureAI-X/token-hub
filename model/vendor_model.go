@@ -6,20 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// VendorModel 供应商模型关联（供应商 + 模型 + 供应商侧的模型ID + 请求路径）
+// VendorModel 供应商模型关联（供应商 + 模型 + 供应商侧的模型ID）
 type VendorModel struct {
 	ID              int    `json:"id" gorm:"primaryKey"`
 	VendorID        int    `json:"vendor_id" gorm:"index;not null"`
 	ModelID         int    `json:"model_id" gorm:"index;not null"`
 	VendorModelID   string `json:"vendor_model_id" gorm:"size:256;not null"`
-	RequestPath     string `json:"request_path" gorm:"size:512"`
 	Status          int    `json:"status" gorm:"default:1"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
-
-	// 是否异步模式
-	IsAsync         bool   `json:"is_async" gorm:"default:false"`
 
 	// 非数据库字段：关联查询时填充
 	VendorName      string `json:"vendor_name,omitempty" gorm:"-"`

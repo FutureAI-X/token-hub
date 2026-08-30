@@ -40,7 +40,6 @@ export function DashboardLayout() {
           { title: '端点管理', href: '/dashboard/admin/endpoints', icon: Globe },
           { title: '模型管理', href: '/dashboard/admin/models', icon: Box },
           { title: '供应商管理', href: '/dashboard/admin/vendors', icon: Radio },
-          { title: '供应商端点', href: '/dashboard/admin/vendor-endpoints', icon: Globe },
           { title: '供应商模型', href: '/dashboard/admin/vendor-models', icon: Link2 },
         ],
       })

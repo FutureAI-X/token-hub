@@ -23,8 +23,6 @@ type AdminCreateVendorModelRequest struct {
 	VendorID      int    `json:"vendor_id" binding:"required"`
 	ModelID       int    `json:"model_id" binding:"required"`
 	VendorModelID string `json:"vendor_model_id" binding:"required"`
-	RequestPath   string `json:"request_path"`
-	IsAsync       bool   `json:"is_async"`
 }
 
 // AdminCreateVendorModel 创建供应商模型
@@ -39,8 +37,6 @@ func AdminCreateVendorModel(c *gin.Context) {
 		VendorID:      req.VendorID,
 		ModelID:       req.ModelID,
 		VendorModelID: req.VendorModelID,
-		RequestPath:   req.RequestPath,
-		IsAsync:       req.IsAsync,
 		Status:        1,
 	}
 
@@ -57,8 +53,6 @@ type AdminUpdateVendorModelRequest struct {
 	VendorID      int    `json:"vendor_id"`
 	ModelID       int    `json:"model_id"`
 	VendorModelID string `json:"vendor_model_id"`
-	RequestPath   string `json:"request_path"`
-	IsAsync       *bool  `json:"is_async"`
 }
 
 // AdminUpdateVendorModel 更新供应商模型
@@ -84,12 +78,6 @@ func AdminUpdateVendorModel(c *gin.Context) {
 	}
 	if req.VendorModelID != "" {
 		updates["vendor_model_id"] = req.VendorModelID
-	}
-	if req.RequestPath != "" {
-		updates["request_path"] = req.RequestPath
-	}
-	if req.IsAsync != nil {
-		updates["is_async"] = *req.IsAsync
 	}
 
 	if len(updates) == 0 {
