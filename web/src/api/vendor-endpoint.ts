@@ -22,7 +22,11 @@ export interface VendorEndpoint {
   path: string
   name: string
   description: string
+  method: string
   is_async: boolean
+  success_field: string
+  success_value: string
+  output_field: string
   status: number
   created_at: string
   vendor_name: string
@@ -36,11 +40,15 @@ export function getVendorEndpoints() {
 
 export function createVendorEndpoint(data: {
   vendor_id: number
-  endpoint_id: number
+  endpoint_id?: number
   path?: string
   name?: string
   description?: string
+  method?: string
   is_async?: boolean
+  success_field?: string
+  success_value?: string
+  output_field?: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/vendor-endpoints`, {
     method: 'POST',
@@ -54,7 +62,11 @@ export function updateVendorEndpoint(id: number, data: {
   path?: string
   name?: string
   description?: string
+  method?: string
   is_async?: boolean
+  success_field?: string
+  success_value?: string
+  output_field?: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/vendor-endpoints/${id}`, {
     method: 'PUT',
@@ -80,6 +92,8 @@ export function deleteVendorEndpoint(id: number) {
 export interface VendorEndpointField {
   id: number
   vendor_endpoint_id: number
+  section: string
+  parent_key: string
   endpoint_field_id: number | null
   field_key: string
   field_name: string
@@ -89,8 +103,9 @@ export interface VendorEndpointField {
   sort_order: number
 }
 
-export function getVendorEndpointFields(veId: number) {
-  return request<{ success: boolean; data: VendorEndpointField[] }>(`${BASE}/vendor-endpoints/${veId}/fields`)
+export function getVendorEndpointFields(veId: number, section?: string) {
+  const query = section ? `?section=${section}` : ''
+  return request<{ success: boolean; data: VendorEndpointField[] }>(`${BASE}/vendor-endpoints/${veId}/fields${query}`)
 }
 
 export function syncVEFieldsFromEndpoint(veId: number) {
@@ -106,6 +121,8 @@ export function createVEField(veId: number, data: {
   required: boolean
   description?: string
   endpoint_field_id?: number | null
+  section?: string
+  parent_key?: string
 }) {
   return request<{ success: boolean; message: string; data?: VendorEndpointField }>(`${BASE}/vendor-endpoints/${veId}/fields`, {
     method: 'POST',
@@ -120,6 +137,7 @@ export function updateVEField(veId: number, fieldId: number, data: {
   required?: boolean
   description?: string
   endpoint_field_id?: number | null
+  parent_key?: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/vendor-endpoints/${veId}/fields/${fieldId}`, {
     method: 'PUT',

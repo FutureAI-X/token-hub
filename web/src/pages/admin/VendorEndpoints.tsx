@@ -49,7 +49,11 @@ export function AdminVendorEndpoints() {
   const [formPath, setFormPath] = useState('')
   const [formName, setFormName] = useState('')
   const [formDesc, setFormDesc] = useState('')
+  const [formMethod, setFormMethod] = useState('POST')
   const [formAsync, setFormAsync] = useState(false)
+  const [formSuccessField, setFormSuccessField] = useState('')
+  const [formSuccessValue, setFormSuccessValue] = useState('')
+  const [formOutputField, setFormOutputField] = useState('')
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
 
@@ -68,20 +72,21 @@ export function AdminVendorEndpoints() {
 
   const openCreate = () => {
     setEditRow(null)
-    setFormVendor(''); setFormEndpoint(''); setFormPath(''); setFormName(''); setFormDesc(''); setFormAsync(false); setFormError('')
+    setFormVendor(''); setFormEndpoint(''); setFormPath(''); setFormName(''); setFormDesc(''); setFormMethod('POST'); setFormAsync(false)
+    setFormSuccessField(''); setFormSuccessValue(''); setFormOutputField(''); setFormError('')
     setDrawerOpen(true)
   }
 
   const openEdit = (ve: VendorEndpoint) => {
     setEditRow(ve)
     setFormVendor(String(ve.vendor_id)); setFormEndpoint(String(ve.endpoint_id))
-    setFormPath(ve.path); setFormName(ve.name); setFormDesc(ve.description); setFormAsync(ve.is_async); setFormError('')
+    setFormPath(ve.path); setFormName(ve.name); setFormDesc(ve.description); setFormMethod(ve.method || 'POST'); setFormAsync(ve.is_async)
+    setFormSuccessField(ve.success_field || ''); setFormSuccessValue(ve.success_value || ''); setFormOutputField(ve.output_field || ''); setFormError('')
     setDrawerOpen(true)
   }
 
   const handleSave = async () => {
     if (!formVendor) { setFormError('请选择供应商'); return }
-    if (!formEndpoint) { setFormError('请选择端点'); return }
     setFormSaving(true); setFormError('')
     try {
       if (editRow) {
@@ -91,13 +96,18 @@ export function AdminVendorEndpoints() {
         if (formPath !== editRow.path) data.path = formPath
         if (formName !== editRow.name) data.name = formName
         if (formDesc !== editRow.description) data.description = formDesc
+        if (formMethod !== editRow.method) data.method = formMethod
         if (formAsync !== editRow.is_async) data.is_async = formAsync
+        if (formSuccessField !== editRow.success_field) data.success_field = formSuccessField
+        if (formSuccessValue !== editRow.success_value) data.success_value = formSuccessValue
+        if (formOutputField !== editRow.output_field) data.output_field = formOutputField
         const res = await updateVendorEndpoint(editRow.id, data)
         if (!res.success) { setFormError(res.message || '更新失败'); return }
       } else {
         const res = await createVendorEndpoint({
           vendor_id: Number(formVendor), endpoint_id: Number(formEndpoint),
-          path: formPath, name: formName, description: formDesc, is_async: formAsync,
+          path: formPath, name: formName, description: formDesc, method: formMethod, is_async: formAsync,
+          success_field: formSuccessField, success_value: formSuccessValue, output_field: formOutputField,
         })
         if (!res.success) { setFormError(res.message || '创建失败'); return }
       }
@@ -160,6 +170,7 @@ export function AdminVendorEndpoints() {
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>绑定端点</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点名称</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>方式</th>
                 <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点路径</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>描述</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>异步</th>
@@ -169,9 +180,9 @@ export function AdminVendorEndpoints() {
             </thead>
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
-                <tr><td colSpan={9} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
+                <tr><td colSpan={10} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={9} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无供应商端点</p></td></tr>
+                <tr><td colSpan={10} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无供应商端点</p></td></tr>
               ) : items.map((ve) => {
                 const statusConf = STATUS_CONFIG[ve.status] || STATUS_CONFIG[1]
                 return (
@@ -186,11 +197,17 @@ export function AdminVendorEndpoints() {
                     <td className='px-4 py-3'>
                       <span className='inline-flex items-center gap-1.5 rounded-md bg-purple-500/10 px-2 py-0.5 text-xs font-medium text-purple-600 dark:text-purple-400'>
                         <Globe className='size-3' />
-                        {ve.endpoint_name || `#${ve.endpoint_id}`}
+                        {ve.endpoint_name || (ve.endpoint_id ? `#${ve.endpoint_id}` : '未绑定')}
                       </span>
                     </td>
                     <td className='px-4 py-3'>
                       <span className='text-sm'>{ve.name || '-'}</span>
+                    </td>
+                    <td className='px-4 py-3'>
+                      <span className={cn('rounded px-1.5 py-0.5 text-[11px] font-semibold',
+                        ve.method === 'GET' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400')}>
+                        {ve.method || 'POST'}
+                      </span>
                     </td>
                     <td className='px-4 py-3'>
                       <code className='font-mono text-xs break-all'>{ve.path || ve.endpoint_path || '-'}</code>
@@ -286,10 +303,22 @@ export function AdminVendorEndpoints() {
                 <input type='text' value={formDesc} onChange={(e) => setFormDesc(e.target.value)} placeholder='可选'
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
               </div>
-              <label className='flex items-center gap-2 text-sm'>
-                <input type='checkbox' checked={formAsync} onChange={(e) => setFormAsync(e.target.checked)} className='border-border/60 size-4 rounded' />
-                异步模式
-              </label>
+              <div className='grid grid-cols-2 gap-4'>
+                <div className='space-y-1'>
+                  <label className='text-sm font-medium'>请求方式</label>
+                  <select value={formMethod} onChange={(e) => setFormMethod(e.target.value)}
+                    className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
+                    <option value='POST'>POST</option>
+                    <option value='GET'>GET</option>
+                  </select>
+                </div>
+                <div className='flex items-end pb-1'>
+                  <label className='flex items-center gap-2 text-sm'>
+                    <input type='checkbox' checked={formAsync} onChange={(e) => setFormAsync(e.target.checked)} className='border-border/60 size-4 rounded' />
+                    异步模式
+                  </label>
+                </div>
+              </div>
             </div>
             <div className='flex justify-end gap-3 border-t border-border/40 px-6 py-4'>
               <button onClick={() => setDrawerOpen(false)} disabled={formSaving}
@@ -314,8 +343,16 @@ export function AdminVendorEndpoints() {
           onOpenChange={setFieldOpen}
           vendorEndpointId={fieldRow.id}
           endpointId={fieldRow.endpoint_id}
+          vendorEndpointPath={fieldRow.path || fieldRow.endpoint_path || ''}
           vendorName={fieldRow.vendor_name}
           endpointName={fieldRow.endpoint_name || fieldRow.name}
+          successField={fieldRow.success_field}
+          successValue={fieldRow.success_value}
+          outputField={fieldRow.output_field}
+          onSaveResponseConfig={async (data) => {
+            await updateVendorEndpoint(fieldRow.id, data)
+            loadAll()
+          }}
         />
       )}
     </div>

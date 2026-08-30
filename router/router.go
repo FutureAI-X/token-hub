@@ -78,6 +78,7 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.DELETE("/vendor-models/:id/fields/:fieldId", controller.DeleteVMField)
 
 		adminRouter.GET("/vendor-endpoints", controller.AdminGetVendorEndpoints)
+		adminRouter.GET("/vendor-endpoints/:id", controller.AdminGetVendorEndpoint)
 		adminRouter.POST("/vendor-endpoints", controller.AdminCreateVendorEndpoint)
 		adminRouter.PUT("/vendor-endpoints/:id", controller.AdminUpdateVendorEndpoint)
 		adminRouter.PUT("/vendor-endpoints/:id/status", controller.AdminUpdateVendorEndpointStatus)

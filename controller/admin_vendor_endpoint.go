@@ -10,6 +10,34 @@ import (
 
 // ── 供应商端点 CRUD ──
 
+// AdminGetVendorEndpoint 获取单个供应商端点
+func AdminGetVendorEndpoint(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "无效的ID"})
+		return
+	}
+
+	ve, err := model.GetVendorEndpointByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "供应商端点不存在"})
+		return
+	}
+
+	// 填充关联名称
+	vendorMap, _ := model.GetVendorMapByID()
+	epMap, _ := model.GetEndpointMapByID()
+	if v, ok := vendorMap[ve.VendorID]; ok {
+		ve.VendorName = v.Name
+	}
+	if ep, ok := epMap[ve.EndpointID]; ok {
+		ve.EndpointPath = ep.Path
+		ve.EndpointName = ep.Name
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": ve})
+}
+
 // AdminGetVendorEndpoints 获取供应商端点列表
 func AdminGetVendorEndpoints(c *gin.Context) {
 	items, err := model.AdminGetVendorEndpoints()
@@ -22,12 +50,16 @@ func AdminGetVendorEndpoints(c *gin.Context) {
 
 // AdminCreateVendorEndpointRequest 创建请求
 type AdminCreateVendorEndpointRequest struct {
-	VendorID    int    `json:"vendor_id" binding:"required"`
-	EndpointID  int    `json:"endpoint_id" binding:"required"`
-	Path        string `json:"path"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsAsync     bool   `json:"is_async"`
+	VendorID     int    `json:"vendor_id" binding:"required"`
+	EndpointID   int    `json:"endpoint_id"`
+	Path         string `json:"path"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Method       string `json:"method"`
+	IsAsync      bool   `json:"is_async"`
+	SuccessField string `json:"success_field"`
+	SuccessValue string `json:"success_value"`
+	OutputField  string `json:"output_field"`
 }
 
 // AdminCreateVendorEndpoint 创建供应商端点
@@ -38,14 +70,23 @@ func AdminCreateVendorEndpoint(c *gin.Context) {
 		return
 	}
 
+	method := req.Method
+	if method != "GET" {
+		method = "POST"
+	}
+
 	ve := model.VendorEndpoint{
-		VendorID:    req.VendorID,
-		EndpointID:  req.EndpointID,
-		Path:        req.Path,
-		Name:        req.Name,
-		Description: req.Description,
-		IsAsync:     req.IsAsync,
-		Status:      1,
+		VendorID:     req.VendorID,
+		EndpointID:   req.EndpointID,
+		Path:         req.Path,
+		Name:         req.Name,
+		Description:  req.Description,
+		Method:       method,
+		IsAsync:      req.IsAsync,
+		SuccessField: req.SuccessField,
+		SuccessValue: req.SuccessValue,
+		OutputField:  req.OutputField,
+		Status:       1,
 	}
 
 	if err := model.CreateVendorEndpoint(&ve); err != nil {
@@ -58,12 +99,16 @@ func AdminCreateVendorEndpoint(c *gin.Context) {
 
 // AdminUpdateVendorEndpointRequest 更新请求
 type AdminUpdateVendorEndpointRequest struct {
-	VendorID    int    `json:"vendor_id"`
-	EndpointID  int    `json:"endpoint_id"`
-	Path        string `json:"path"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsAsync     *bool  `json:"is_async"`
+	VendorID     int    `json:"vendor_id"`
+	EndpointID   int    `json:"endpoint_id"`
+	Path         string `json:"path"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	Method       string `json:"method"`
+	IsAsync      *bool  `json:"is_async"`
+	SuccessField string `json:"success_field"`
+	SuccessValue string `json:"success_value"`
+	OutputField  string `json:"output_field"`
 }
 
 // AdminUpdateVendorEndpoint 更新供应商端点
@@ -96,8 +141,24 @@ func AdminUpdateVendorEndpoint(c *gin.Context) {
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
+	if req.Method != "" {
+		method := req.Method
+		if method != "GET" {
+			method = "POST"
+		}
+		updates["method"] = method
+	}
 	if req.IsAsync != nil {
 		updates["is_async"] = *req.IsAsync
+	}
+	if req.SuccessField != "" {
+		updates["success_field"] = req.SuccessField
+	}
+	if req.SuccessValue != "" {
+		updates["success_value"] = req.SuccessValue
+	}
+	if req.OutputField != "" {
+		updates["output_field"] = req.OutputField
 	}
 
 	if len(updates) == 0 {
@@ -168,7 +229,8 @@ func GetVendorEndpointFields(c *gin.Context) {
 		return
 	}
 
-	fields, err := model.GetVendorEndpointFields(veID)
+	section := c.Query("section")
+	fields, err := model.GetVendorEndpointFields(veID, section)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取字段失败"})
 		return
@@ -207,6 +269,8 @@ type CreateVEFieldRequest struct {
 	Required        bool   `json:"required"`
 	Description     string `json:"description"`
 	EndpointFieldID *int   `json:"endpoint_field_id"`
+	Section         string `json:"section"`
+	ParentKey       string `json:"parent_key"`
 }
 
 // CreateVEField 创建字段
@@ -231,8 +295,15 @@ func CreateVEField(c *gin.Context) {
 		return
 	}
 
+	section := req.Section
+	if section != "response" && section != "path" {
+		section = "request"
+	}
+
 	field := model.VendorEndpointField{
 		VendorEndpointID: veID,
+		Section:          section,
+		ParentKey:        req.ParentKey,
 		EndpointFieldID:  req.EndpointFieldID,
 		FieldKey:         req.FieldKey,
 		FieldName:        req.FieldName,
@@ -257,6 +328,7 @@ type UpdateVEFieldRequest struct {
 	Required        *bool  `json:"required"`
 	Description     string `json:"description"`
 	EndpointFieldID *int   `json:"endpoint_field_id"`
+	ParentKey       string `json:"parent_key"`
 }
 
 // UpdateVEField 更新字段
@@ -295,6 +367,9 @@ func UpdateVEField(c *gin.Context) {
 	}
 	if req.Description != "" {
 		updates["description"] = req.Description
+	}
+	if req.ParentKey != "" {
+		updates["parent_key"] = req.ParentKey
 	}
 	if req.EndpointFieldID != nil {
 		if *req.EndpointFieldID == -1 {

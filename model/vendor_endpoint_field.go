@@ -10,7 +10,9 @@ import (
 type VendorEndpointField struct {
 	ID               int        `json:"id" gorm:"primaryKey"`
 	VendorEndpointID int        `json:"vendor_endpoint_id" gorm:"index;not null"`
-	EndpointFieldID  *int       `json:"endpoint_field_id" gorm:"index"` // 关联端点字段，nil=手动新增
+	Section          string     `json:"section" gorm:"size:32;not null;default:'request'"` // request 或 response
+	ParentKey        string     `json:"parent_key" gorm:"size:256"`                        // 父字段路径，如 "data"，空表示根级
+	EndpointFieldID  *int       `json:"endpoint_field_id" gorm:"index"`                    // 关联端点字段，nil=手动新增
 	FieldKey         string     `json:"field_key" gorm:"size:128;not null"`
 	FieldName        string     `json:"field_name" gorm:"size:128;not null"`
 	FieldType        string     `json:"field_type" gorm:"size:32;not null;default:'string'"`
@@ -23,9 +25,13 @@ type VendorEndpointField struct {
 }
 
 // GetVendorEndpointFields 获取供应商端点字段列表
-func GetVendorEndpointFields(veID int) ([]VendorEndpointField, error) {
+func GetVendorEndpointFields(veID int, section ...string) ([]VendorEndpointField, error) {
 	var fields []VendorEndpointField
-	err := DB.Where("vendor_endpoint_id = ?", veID).Order("sort_order ASC, id ASC").Find(&fields).Error
+	query := DB.Where("vendor_endpoint_id = ?", veID)
+	if len(section) > 0 && section[0] != "" {
+		query = query.Where("section = ?", section[0])
+	}
+	err := query.Order("sort_order ASC, id ASC").Find(&fields).Error
 	return fields, err
 }
 

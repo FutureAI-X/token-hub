@@ -14,8 +14,12 @@ type VendorEndpoint struct {
 	Path        string     `json:"path" gorm:"size:512"`         // 供应商侧路径，为空则用端点默认路径
 	Name        string     `json:"name" gorm:"size:128"`         // 供应商侧名称，为空则用端点默认名称
 	Description string     `json:"description" gorm:"size:512"`  // 供应商侧描述
-	IsAsync     bool       `json:"is_async" gorm:"default:false"`
-	Status      int        `json:"status" gorm:"default:1"`
+	Method       string     `json:"method" gorm:"size:16;default:'POST'"` // POST 或 GET
+	IsAsync      bool       `json:"is_async" gorm:"default:false"`
+	SuccessField string     `json:"success_field" gorm:"size:256"` // 判定成功的字段，如 "code"
+	SuccessValue string     `json:"success_value" gorm:"size:256"` // 成功时的值，如 "200"
+	OutputField  string     `json:"output_field" gorm:"size:256"`  // 后续处理用的字段路径，如 "data.task_id"
+	Status       int        `json:"status" gorm:"default:1"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
