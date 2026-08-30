@@ -16,7 +16,8 @@ type Task struct {
 	ModelID        int        `json:"model_id" gorm:"index;not null"`
 	EndpointID     int        `json:"endpoint_id" gorm:"index;not null"`
 	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
-	VendorResponse string     `json:"vendor_response" gorm:"type:text"`                   // 供应商原始响应 JSON
+	VendorResponse string     `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
+	QueryResponse  string     `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `json:"-" gorm:"index"`
@@ -42,4 +43,23 @@ func GetTaskByTaskID(taskID string) (*Task, error) {
 		return nil, err
 	}
 	return &task, nil
+}
+
+// UpdateTaskStatus 更新任务状态和查询响应
+func UpdateTaskStatus(taskID string, status string, queryResponse string) error {
+	updates := map[string]interface{}{
+		"status": status,
+	}
+	if queryResponse != "" {
+		updates["query_response"] = queryResponse
+	}
+	return DB.Model(&Task{}).Where("task_id = ?", taskID).Updates(updates).Error
+}
+
+// GetPendingTasks 获取所有未完成的任务（用于启动时恢复轮询）
+func GetPendingTasks() ([]Task, error) {
+	var tasks []Task
+	err := DB.Where("status NOT IN ?", []string{"completed", "failed", "cancelled", "call_fail"}).
+		Order("id ASC").Find(&tasks).Error
+	return tasks, err
 }

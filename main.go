@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/FutureAI/token-hub/common"
+	"github.com/FutureAI/token-hub/controller"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/FutureAI/token-hub/router"
 	"github.com/gin-gonic/gin"
@@ -24,6 +25,9 @@ func main() {
 		common.FatalLog("failed to initialize database: " + err.Error())
 	}
 	defer model.CloseDB()
+
+	// 恢复未完成任务的轮询
+	go controller.RecoverPendingTasks()
 
 	// 设置 Gin 模式
 	if os.Getenv("GIN_MODE") != "debug" {

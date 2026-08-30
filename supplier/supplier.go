@@ -24,9 +24,18 @@ type ImageGenerateResponse struct {
 	Data map[string]interface{} `json:"data,omitempty"` // 成功时的业务数据
 }
 
+// TaskQueryResponse 任务查询规范化响应（所有供应商统一返回）
+type TaskQueryResponse struct {
+	TaskID string                 `json:"task_id"`
+	Status string                 `json:"status"`           // completed, failed, cancelled, pending, processing, call_fail
+	Data   map[string]interface{} `json:"data,omitempty"`   // 仅 completed 时有值
+}
+
 // Supplier 供应商接口，每个供应商实现此接口
 type Supplier interface {
 	ImageGenerate(req ImageGenerateRequest) ImageGenerateResponse
+	// TaskQuery 查询任务状态，vendorResponse 为提交任务时供应商返回的原始 JSON
+	TaskQuery(vendorResponse string) TaskQueryResponse
 }
 
 // NewSupplier 工厂函数，根据供应商名称返回对应实现
