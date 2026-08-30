@@ -148,6 +148,34 @@ func ImageGenerate(c *gin.Context) {
 	})
 }
 
+// GetTask 查询任务状态
+// GET /v1/tasks/:task_id
+func GetTask(c *gin.Context) {
+	taskID := c.Param("task_id")
+	if taskID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"taskId": "", "status": "fail", "message": "缺少 task_id"})
+		return
+	}
+
+	task, err := model.GetTaskByTaskID(taskID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"taskId": taskID, "status": "fail", "message": "任务不存在"})
+		return
+	}
+
+	// 解析 query_response 作为 data
+	var data map[string]interface{}
+	if task.QueryResponse != "" {
+		json.Unmarshal([]byte(task.QueryResponse), &data)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"taskId": task.TaskID,
+		"status": task.Status,
+		"data":   data,
+	})
+}
+
 // pollTaskStatus 后台轮询供应商任务状态
 func pollTaskStatus(taskID string, vendorResponse string, vendorName string, cfg supplier.Config) {
 	s := supplier.NewSupplier(vendorName, cfg)
