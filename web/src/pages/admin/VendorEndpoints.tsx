@@ -158,7 +158,8 @@ export function AdminVendorEndpoints() {
               <tr className='bg-muted/30 border-border/40 border-b'>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商</th>
-                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>绑定端点</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点名称</th>
                 <th className='text-muted-foreground min-w-[200px] px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>端点路径</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>描述</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>异步</th>
@@ -168,9 +169,9 @@ export function AdminVendorEndpoints() {
             </thead>
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
-                <tr><td colSpan={8} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
+                <tr><td colSpan={9} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : items.length === 0 ? (
-                <tr><td colSpan={8} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无供应商端点</p></td></tr>
+                <tr><td colSpan={9} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无供应商端点</p></td></tr>
               ) : items.map((ve) => {
                 const statusConf = STATUS_CONFIG[ve.status] || STATUS_CONFIG[1]
                 return (
@@ -187,6 +188,9 @@ export function AdminVendorEndpoints() {
                         <Globe className='size-3' />
                         {ve.endpoint_name || `#${ve.endpoint_id}`}
                       </span>
+                    </td>
+                    <td className='px-4 py-3'>
+                      <span className='text-sm'>{ve.name || '-'}</span>
                     </td>
                     <td className='px-4 py-3'>
                       <code className='font-mono text-xs break-all'>{ve.path || ve.endpoint_path || '-'}</code>
@@ -252,21 +256,29 @@ export function AdminVendorEndpoints() {
                 </select>
               </div>
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>端点</label>
-                <select value={formEndpoint} onChange={(e) => setFormEndpoint(e.target.value)}
+                <label className='text-sm font-medium'>绑定端点</label>
+                <select value={formEndpoint} onChange={(e) => {
+                  setFormEndpoint(e.target.value)
+                  const ep = endpoints.find(ep => ep.id === Number(e.target.value))
+                  if (ep) {
+                    if (!formPath) setFormPath(ep.path)
+                    if (!formName) setFormName(ep.name)
+                    if (!formDesc) setFormDesc(ep.description)
+                  }
+                }}
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
                   <option value=''>请选择端点</option>
                   {endpoints.filter(e => e.status === 1).map(e => <option key={e.id} value={e.id}>{e.name} ({e.path})</option>)}
                 </select>
               </div>
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>端点路径（覆盖）</label>
-                <input type='text' value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder='留空则使用端点默认路径'
+                <label className='text-sm font-medium'>端点路径</label>
+                <input type='text' value={formPath} onChange={(e) => setFormPath(e.target.value)} placeholder='供应商实际调用的路径'
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
               </div>
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>名称（覆盖）</label>
-                <input type='text' value={formName} onChange={(e) => setFormName(e.target.value)} placeholder='留空则使用端点默认名称'
+                <label className='text-sm font-medium'>端点名称</label>
+                <input type='text' value={formName} onChange={(e) => setFormName(e.target.value)} placeholder='供应商侧的端点名称'
                   className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
               </div>
               <div className='space-y-2'>

@@ -21,9 +21,9 @@ type VendorEndpoint struct {
 	DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 
 	// 非数据库字段
-	VendorName    string `json:"vendor_name,omitempty" gorm:"-"`
-	EndpointPath  string `json:"endpoint_path,omitempty" gorm:"-"`
-	EndpointName  string `json:"endpoint_name,omitempty" gorm:"-"`
+	VendorName    string `json:"vendor_name" gorm:"-"`
+	EndpointPath  string `json:"endpoint_path" gorm:"-"`
+	EndpointName  string `json:"endpoint_name" gorm:"-"`
 }
 
 // AdminGetVendorEndpoints 获取全部供应商端点
