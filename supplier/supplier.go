@@ -1,0 +1,43 @@
+package supplier
+
+import (
+	"time"
+)
+
+// Config 供应商配置（调用方从 Vendor 模型读取并解密后传入）
+type Config struct {
+	BaseURL string // 供应商 API 基础地址
+	APIKey  string // 已解密的 API Key
+}
+
+// ImageGenerateRequest 图像生成规范化请求
+// Body 为外部传入的原始 JSON，直接透传给供应商 API
+type ImageGenerateRequest struct {
+	Body map[string]interface{}
+}
+
+// ImageGenerateResponse 图像生成规范化响应（所有供应商统一返回）
+// 成功时 Data 为供应商返回的业务数据（不同供应商内容可能不同）
+// 失败时 Data 为 nil
+type ImageGenerateResponse struct {
+	Code string                 `json:"code"`           // "success" 或 "fail"
+	Data map[string]interface{} `json:"data,omitempty"` // 成功时的业务数据
+}
+
+// Supplier 供应商接口，每个供应商实现此接口
+type Supplier interface {
+	ImageGenerate(req ImageGenerateRequest) ImageGenerateResponse
+}
+
+// NewSupplier 工厂函数，根据供应商名称返回对应实现
+func NewSupplier(vendorName string, cfg Config) Supplier {
+	switch vendorName {
+	case "apimart", "APIMart":
+		return newAPIMart(cfg)
+	default:
+		return nil
+	}
+}
+
+// defaultHTTPTimeout 默认 HTTP 超时
+const defaultHTTPTimeout = 30 * time.Second
