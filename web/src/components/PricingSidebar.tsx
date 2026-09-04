@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronDown, RotateCcw } from 'lucide-react'
 import { cn } from '../lib/utils'
-import type { PricingModel, PricingVendor } from '../types/pricing'
+import type { PricingModel } from '../types/pricing'
 
 // ── 工具函数 ──
 function parseTags(tags?: string): string[] {
@@ -108,27 +108,10 @@ function FilterSection(props: FilterSectionProps) {
 // ── 常量 ──
 const FILTER_ALL = '__all__'
 
-const QUOTA_TYPES = {
-  ALL: FILTER_ALL,
-  TOKEN: '0',
-  REQUEST: '1',
-} as const
-
-const quotaTypeLabels: Record<string, string> = {
-  [FILTER_ALL]: '全部类型',
-  '0': '按量计费',
-  '1': '按次计费',
-}
-
 // ── Props ──
 export interface PricingSidebarProps {
-  vendorFilter: string
   tagFilter: string
-  quotaTypeFilter: string
-  onVendorChange: (value: string) => void
   onTagChange: (value: string) => void
-  onQuotaTypeChange: (value: string) => void
-  vendors: PricingVendor[]
   models: PricingModel[]
   hasActiveFilters: boolean
   onClearFilters: () => void
@@ -137,25 +120,6 @@ export interface PricingSidebarProps {
 
 // ── 主组件 ──
 export function PricingSidebar(props: PricingSidebarProps) {
-  // 供应商选项
-  const vendorOptions: FilterOption[] = [
-    {
-      value: FILTER_ALL,
-      label: '全部供应商',
-      count: props.models.length,
-    },
-    ...props.vendors
-      .map((vendor) => ({
-        value: vendor.name,
-        label: vendor.name,
-        count: countBy(
-          props.models,
-          (model) => model.vendor_name === vendor.name
-        ),
-      }))
-      .filter((vendor) => vendor.count > 0),
-  ]
-
   // 标签选项（从所有模型中提取）
   const allTags = Array.from(
     new Set(props.models.flatMap((m) => parseTags(m.tags)))
@@ -176,32 +140,13 @@ export function PricingSidebar(props: PricingSidebarProps) {
     })),
   ]
 
-  // 计费类型选项
-  const quotaOptions: FilterOption[] = [
-    {
-      value: QUOTA_TYPES.ALL,
-      label: quotaTypeLabels[QUOTA_TYPES.ALL],
-      count: props.models.length,
-    },
-    {
-      value: QUOTA_TYPES.TOKEN,
-      label: quotaTypeLabels[QUOTA_TYPES.TOKEN],
-      count: countBy(props.models, (model) => model.quota_type === 0),
-    },
-    {
-      value: QUOTA_TYPES.REQUEST,
-      label: quotaTypeLabels[QUOTA_TYPES.REQUEST],
-      count: countBy(props.models, (model) => model.quota_type === 1),
-    },
-  ]
-
   return (
     <aside className={cn('rounded-xl border p-3', props.className)}>
       <div className='mb-2.5 flex items-center justify-between gap-2'>
         <div>
           <h2 className='text-foreground text-sm font-bold'>筛选</h2>
           <p className='text-muted-foreground mt-1 text-xs'>
-            按供应商、标签、计费类型筛选模型
+            按标签筛选模型
           </p>
         </div>
         <button
@@ -228,22 +173,10 @@ export function PricingSidebar(props: PricingSidebarProps) {
 
       <div className='space-y-1'>
         <FilterSection
-          title='供应商'
-          value={props.vendorFilter}
-          options={vendorOptions}
-          onChange={props.onVendorChange}
-        />
-        <FilterSection
           title='模型标签'
           value={props.tagFilter}
           options={tagOptions}
           onChange={props.onTagChange}
-        />
-        <FilterSection
-          title='计费类型'
-          value={props.quotaTypeFilter}
-          options={quotaOptions}
-          onChange={props.onQuotaTypeChange}
         />
       </div>
     </aside>

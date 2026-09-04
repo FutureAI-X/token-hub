@@ -53,8 +53,8 @@ func GetModelByName(name string) (*Model, error) {
 	return &model, nil
 }
 
-// GetPricingModels 获取所有可用模型
-func GetPricingModels() ([]Model, error) {
+// GetPricingModels 获取所有可用模型（带积分规则）
+func GetPricingModels() ([]map[string]interface{}, error) {
 	var models []Model
 	err := DB.Where("status = ?", 1).
 		Order("name ASC").
@@ -63,7 +63,34 @@ func GetPricingModels() ([]Model, error) {
 		return nil, err
 	}
 
-	return models, nil
+	// 获取所有启用的积分规则
+	var rules []QuotaRule
+	DB.Where("status = ?", 1).Preload("Items").Find(&rules)
+
+	// 构建模型ID到规则的映射
+	ruleMap := make(map[int]*QuotaRule)
+	for i := range rules {
+		ruleMap[rules[i].ModelID] = &rules[i]
+	}
+
+	// 构建返回数据
+	result := make([]map[string]interface{}, len(models))
+	for i, m := range models {
+		item := map[string]interface{}{
+			"id":          m.ID,
+			"name":        m.Name,
+			"description": m.Description,
+			"tags":        m.Tags,
+			"owner":       m.Owner,
+			"status":      m.Status,
+		}
+		if rule, ok := ruleMap[m.ID]; ok {
+			item["quota_rule"] = rule
+		}
+		result[i] = item
+	}
+
+	return result, nil
 }
 
 // AdminGetModels 管理员获取全部模型（含禁用）

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Search, Copy, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Header } from '../components/Header'
+import { PricingSidebar } from '../components/PricingSidebar'
 import type { PricingModel, PricingData } from '../types/pricing'
 
 // ── 筛选常量 ──
@@ -36,62 +37,95 @@ function ModelCard({
   const { copy } = useCopyToClipboard()
   const tags = parseTags(model.tags)
   const initial = model.name?.charAt(0).toUpperCase() || '?'
+  const quotaRule = model.quota_rule
 
   return (
-    <div className='group relative flex flex-col rounded-xl border p-3 transition-colors hover:bg-muted/20 sm:p-5'>
-      {/* 头部：图标 + 名称 + 操作 */}
-      <div className='flex items-start justify-between gap-2.5 sm:gap-3'>
-        <div className='flex min-w-0 items-start gap-2.5 sm:gap-3'>
-          <div className='bg-muted/40 flex size-9 shrink-0 items-center justify-center rounded-lg sm:size-10 sm:rounded-xl'>
-            <span className='text-muted-foreground text-sm font-bold'>
-              {initial}
-            </span>
-          </div>
-          <div className='min-w-0'>
-            <h3 className='text-foreground truncate font-mono text-[15px] leading-tight font-bold'>
-              {model.name}
-            </h3>
-            <div className='mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm sm:mt-1 sm:gap-x-3'>
-              <span className='text-muted-foreground whitespace-nowrap'>
-                {model.owner}
+    <div className='group relative flex flex-col overflow-hidden rounded-xl border transition-all hover:border-foreground/20 hover:shadow-lg'>
+      {/* 主内容区 */}
+      <div className='flex flex-1 flex-col p-4 sm:p-5'>
+        {/* 头部：图标 + 名称 + 操作 */}
+        <div className='flex items-start justify-between gap-3'>
+          <div className='flex min-w-0 items-start gap-3'>
+            <div className='bg-muted/40 flex size-10 shrink-0 items-center justify-center rounded-xl'>
+              <span className='text-lg font-bold text-muted-foreground'>
+                {initial}
               </span>
             </div>
+            <div className='min-w-0'>
+              <h3 className='text-foreground truncate font-mono text-sm font-bold sm:text-[15px]'>
+                {model.name}
+              </h3>
+              <p className='text-muted-foreground mt-0.5 text-xs'>
+                {model.owner}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className='flex shrink-0 items-center gap-1.5'>
-          <button
-            type='button'
-            onClick={onClick}
-            className='text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors sm:px-2.5 sm:py-1.5'
-          >
-            详情
-            <ChevronRight className='size-3.5' />
-          </button>
           <button
             type='button'
             onClick={() => copy(model.name)}
-            className='text-muted-foreground hover:text-foreground hover:bg-muted rounded-md border p-1.5 transition-colors'
+            className='text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg p-1.5 transition-colors'
             title='复制模型名称'
           >
             <Copy className='size-3.5' />
           </button>
         </div>
+
+        {/* 描述 */}
+        <p className='text-muted-foreground mt-3 line-clamp-2 flex-1 text-xs leading-relaxed sm:text-[13px]'>
+          {model.description || '暂无描述'}
+        </p>
+
+        {/* 标签 */}
+        {tags.length > 0 && (
+          <div className='mt-3 flex flex-wrap gap-1.5'>
+            {tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className='bg-muted/70 text-muted-foreground rounded-md px-2 py-0.5 text-[11px] font-medium'
+              >
+                {tag}
+              </span>
+            ))}
+            {tags.length > 3 && (
+              <span className='text-muted-foreground text-[11px]'>+{tags.length - 3}</span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* 描述 */}
-      <p className='text-muted-foreground mt-2 line-clamp-1 flex-1 text-[13px] leading-relaxed sm:mt-4 sm:line-clamp-2 sm:min-h-[2.5rem]'>
-        {model.description || '暂无描述'}
-      </p>
-
-      {/* 底部信息 */}
-      <div className='mt-2 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 sm:mt-4 sm:gap-x-3'>
-        {tags.slice(0, 3).map((tag) => (
-          <span key={tag} className='text-muted-foreground/70 text-xs'>
-            {tag}
-          </span>
-        ))}
-      </div>
+      {/* 积分消耗 */}
+      {quotaRule && (
+        <div className='px-4 pb-3 sm:px-5 sm:pb-4'>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-baseline gap-1'>
+              <span className='text-xl font-bold tracking-tight sm:text-2xl'>
+                {quotaRule.base_price.toFixed(2)}
+              </span>
+              <span className='text-muted-foreground text-xs'>积分/次</span>
+            </div>
+            <span className='bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-[11px] font-medium'>
+              按次计费
+            </span>
+          </div>
+          {quotaRule.items && quotaRule.items.length > 0 && (
+            <div className='mt-2 flex flex-wrap gap-1.5'>
+              {quotaRule.items.slice(0, 3).map((item) => (
+                <span
+                  key={item.id}
+                  className='inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px]'
+                >
+                  <span className='text-muted-foreground'>{item.param_value}</span>
+                  <span className='font-medium'>{item.price.toFixed(2)}</span>
+                </span>
+              ))}
+              {quotaRule.items.length > 3 && (
+                <span className='text-muted-foreground text-[11px]'>+{quotaRule.items.length - 3}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -258,154 +292,139 @@ export function Pricing() {
             </div>
           </header>
 
-          {/* 标签筛选 */}
-          {allTags.length > 0 && (
-            <div className='mb-6 flex flex-wrap items-center gap-2'>
-              <button
-                onClick={() => setTagFilter(FILTER_ALL)}
-                className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                  tagFilter === FILTER_ALL
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                )}
-              >
-                全部
-              </button>
-              {allTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => setTagFilter(tag)}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                    tagFilter === tag
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {tag}
-                </button>
-              ))}
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className='text-muted-foreground hover:text-foreground text-xs underline underline-offset-2'
-                >
-                  清除筛选
-                </button>
-              )}
-            </div>
-          )}
+          {/* 侧边栏 + 内容区 */}
+          <div className='grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]'>
+            {/* 侧边栏（桌面端显示） */}
+            <PricingSidebar
+              tagFilter={tagFilter}
+              onTagChange={setTagFilter}
+              models={data?.models || []}
+              hasActiveFilters={hasActiveFilters}
+              onClearFilters={clearFilters}
+              className='hover-scrollbar sticky top-4 hidden max-h-[calc(100dvh-2rem)] self-start overflow-y-auto xl:block'
+            />
 
-          {/* 工具栏 */}
-          <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-            <div className='flex items-center gap-2'>
-              <span className='text-muted-foreground text-sm'>
-                共 <span className='text-foreground font-medium'>{filteredModels.length}</span> 个模型
-                {filteredModels.length !== (data?.models.length || 0) && (
-                  <span className='text-muted-foreground/60'> / {data?.models.length || 0}</span>
-                )}
-              </span>
-            </div>
-
-            <div className='flex items-center gap-2'>
-              {/* 视图切换 */}
-              <div className='bg-muted/50 flex items-center rounded-lg p-0.5'>
-                <button
-                  onClick={() => setViewMode('card')}
-                  className={cn(
-                    'rounded-md p-1.5 transition-colors',
-                    viewMode === 'card'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <LayoutGrid className='size-3.5' />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    'rounded-md p-1.5 transition-colors',
-                    viewMode === 'list'
-                      ? 'bg-background text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  <List className='size-3.5' />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 模型列表 */}
-          {filteredModels.length === 0 ? (
-            <div className='flex flex-col items-center justify-center py-20'>
-              <p className='text-muted-foreground text-lg'>没有找到匹配的模型</p>
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className='text-primary mt-2 text-sm underline underline-offset-2'
-                >
-                  清除筛选条件
-                </button>
-              )}
-            </div>
-          ) : viewMode === 'card' ? (
-            <div className='grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3'>
-              {filteredModels.map((model) => (
-                <ModelCard
-                  key={model.id}
-                  model={model}
-                  onClick={() => {}}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className='border-border/40 overflow-hidden rounded-xl border'>
-              <table className='w-full'>
-                <thead>
-                  <tr className='bg-muted/30 border-border/40 border-b'>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>模型</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>开发者</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>描述</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>标签</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredModels.map((model) => (
-                    <tr
-                      key={model.id}
-                      className='border-border/20 hover:bg-muted/20 border-b transition-colors'
+            {/* 主内容区 */}
+            <main className='min-w-0'>
+              {/* 工具栏 */}
+              <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+                <div className='flex items-center gap-2'>
+                  <span className='text-muted-foreground text-sm'>
+                    共 <span className='text-foreground font-medium'>{filteredModels.length}</span> 个模型
+                    {filteredModels.length !== (data?.models.length || 0) && (
+                      <span className='text-muted-foreground/60'> / {data?.models.length || 0}</span>
+                    )}
+                  </span>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className='text-muted-foreground hover:text-foreground text-xs underline underline-offset-2'
                     >
-                      <td className='px-4 py-3'>
-                        <span className='font-mono text-sm font-medium'>{model.name}</span>
-                      </td>
-                      <td className='text-muted-foreground px-4 py-3 text-sm'>
-                        {model.owner || '-'}
-                      </td>
-                      <td className='text-muted-foreground px-4 py-3 text-sm max-w-xs truncate'>
-                        {model.description || '-'}
-                      </td>
-                      <td className='px-4 py-3'>
-                        <div className='flex flex-wrap gap-1'>
-                          {parseTags(model.tags)
-                            .slice(0, 2)
-                            .map((tag) => (
-                              <span
-                                key={tag}
-                                className='bg-muted/50 rounded px-1.5 py-0.5 text-[11px]'
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                        </div>
-                      </td>
-                    </tr>
+                      清除筛选
+                    </button>
+                  )}
+                </div>
+
+                <div className='flex items-center gap-2'>
+                  {/* 视图切换 */}
+                  <div className='bg-muted/50 flex items-center rounded-lg p-0.5'>
+                    <button
+                      onClick={() => setViewMode('card')}
+                      className={cn(
+                        'rounded-md p-1.5 transition-colors',
+                        viewMode === 'card'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <LayoutGrid className='size-3.5' />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={cn(
+                        'rounded-md p-1.5 transition-colors',
+                        viewMode === 'list'
+                          ? 'bg-background text-foreground shadow-sm'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <List className='size-3.5' />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 模型列表 */}
+              {filteredModels.length === 0 ? (
+                <div className='flex flex-col items-center justify-center py-20'>
+                  <p className='text-muted-foreground text-lg'>没有找到匹配的模型</p>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className='text-primary mt-2 text-sm underline underline-offset-2'
+                    >
+                      清除筛选条件
+                    </button>
+                  )}
+                </div>
+              ) : viewMode === 'card' ? (
+                <div className='grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3'>
+                  {filteredModels.map((model) => (
+                    <ModelCard
+                      key={model.id}
+                      model={model}
+                      onClick={() => {}}
+                    />
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                </div>
+              ) : (
+                <div className='border-border/40 overflow-hidden rounded-xl border'>
+                  <table className='w-full'>
+                    <thead>
+                      <tr className='bg-muted/30 border-border/40 border-b'>
+                        <th className='px-4 py-3 text-left text-xs font-medium'>模型</th>
+                        <th className='px-4 py-3 text-left text-xs font-medium'>开发者</th>
+                        <th className='px-4 py-3 text-left text-xs font-medium'>描述</th>
+                        <th className='px-4 py-3 text-left text-xs font-medium'>标签</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredModels.map((model) => (
+                        <tr
+                          key={model.id}
+                          className='border-border/20 hover:bg-muted/20 border-b transition-colors'
+                        >
+                          <td className='px-4 py-3'>
+                            <span className='font-mono text-sm font-medium'>{model.name}</span>
+                          </td>
+                          <td className='text-muted-foreground px-4 py-3 text-sm'>
+                            {model.owner || '-'}
+                          </td>
+                          <td className='text-muted-foreground px-4 py-3 text-sm max-w-xs truncate'>
+                            {model.description || '-'}
+                          </td>
+                          <td className='px-4 py-3'>
+                            <div className='flex flex-wrap gap-1'>
+                              {parseTags(model.tags)
+                                .slice(0, 2)
+                                .map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className='bg-muted/50 rounded px-1.5 py-0.5 text-[11px]'
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </main>
+          </div>
         </div>
       </div>
 
