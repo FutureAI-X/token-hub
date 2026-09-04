@@ -17,14 +17,8 @@ export interface AdminModel {
   id: number
   name: string
   owner: string
-  model_type: string
-  request_path: string
   description: string
-  quota_type: number
-  model_ratio: number
-  completion_ratio: number
-  context_length: number
-  max_output_tokens: number
+  tags: string
   status: number
   created_at: string
 }
@@ -36,11 +30,8 @@ export function getModels() {
 export function createModel(data: {
   name: string
   owner: string
-  model_type: string
-  request_path?: string
   description?: string
-  context_length?: number
-  max_output_tokens?: number
+  tags?: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/models`, {
     method: 'POST',
@@ -51,11 +42,8 @@ export function createModel(data: {
 export function updateModel(id: number, data: {
   name?: string
   owner?: string
-  model_type?: string
-  request_path?: string
   description?: string
-  context_length?: number
-  max_output_tokens?: number
+  tags?: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/models/${id}`, {
     method: 'PUT',
@@ -95,5 +83,62 @@ export function syncModelEndpoints(modelId: number, endpointIds: number[]) {
   return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/endpoints`, {
     method: 'PUT',
     body: JSON.stringify({ endpoint_ids: endpointIds }),
+  })
+}
+
+// ── 积分规则 ──
+
+export interface QuotaRuleItem {
+  id?: number
+  rule_id?: number
+  param_path: string
+  param_value: string
+  price: number
+}
+
+export interface QuotaRule {
+  id: number
+  model_id: number
+  rule_type: string
+  base_price: number
+  description?: string
+  status: number
+  created_at: string
+  updated_at: string
+  items?: QuotaRuleItem[]
+}
+
+export function getQuotaRule(modelId: number) {
+  return request<{ success: boolean; data: QuotaRule | null }>(`${BASE}/models/${modelId}/quota-rule`)
+}
+
+export function saveQuotaRule(modelId: number, data: {
+  rule_type: string
+  base_price: number
+  description?: string
+  items?: QuotaRuleItem[]
+}) {
+  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/quota-rule`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateQuotaRuleStatus(id: number, status: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/quota-rules/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status }),
+  })
+}
+
+export function deleteQuotaRule(id: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/quota-rules/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export function deleteModelQuotaRule(modelId: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/quota-rule`, {
+    method: 'DELETE',
   })
 }

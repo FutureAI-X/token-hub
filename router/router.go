@@ -92,5 +92,11 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.GET("/models/:id/endpoints", controller.GetModelEndpoints)
 		adminRouter.PUT("/models/:id/endpoints", controller.SyncModelEndpoints)
 
+		adminRouter.GET("/models/:id/quota-rule", controller.AdminGetQuotaRule)
+		adminRouter.POST("/models/:id/quota-rule", controller.AdminSaveQuotaRule)
+		adminRouter.DELETE("/models/:id/quota-rule", controller.AdminDeleteModelQuotaRule)
+
+		adminRouter.PUT("/quota-rules/:id/status", controller.AdminUpdateQuotaRuleStatus)
+		adminRouter.DELETE("/quota-rules/:id", controller.AdminDeleteQuotaRule)
 	}
 }

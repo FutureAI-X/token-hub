@@ -17,37 +17,25 @@ func AdminGetModels(c *gin.Context) {
 	}
 
 	type modelResponse struct {
-		ID           int     `json:"id"`
-		Name         string  `json:"name"`
-		Owner        string  `json:"owner"`
-		ModelType    string  `json:"model_type"`
-		RequestPath  string  `json:"request_path"`
-		Description  string  `json:"description"`
-		QuotaType    int     `json:"quota_type"`
-		ModelRatio   float64 `json:"model_ratio"`
-		CompletionRatio float64 `json:"completion_ratio"`
-		ContextLength    int   `json:"context_length"`
-		MaxOutputTokens  int   `json:"max_output_tokens"`
-		Status       int     `json:"status"`
-		CreatedAt    string  `json:"created_at"`
+		ID          int    `json:"id"`
+		Name        string `json:"name"`
+		Owner       string `json:"owner"`
+		Description string `json:"description"`
+		Tags        string `json:"tags"`
+		Status      int    `json:"status"`
+		CreatedAt   string `json:"created_at"`
 	}
 
 	items := make([]modelResponse, len(models))
 	for i, m := range models {
 		items[i] = modelResponse{
-			ID:              m.ID,
-			Name:            m.Name,
-			Owner:           m.Owner,
-			ModelType:       m.ModelType,
-			RequestPath:     m.RequestPath,
-			Description:     m.Description,
-			QuotaType:       m.QuotaType,
-			ModelRatio:      m.ModelRatio,
-			CompletionRatio: m.CompletionRatio,
-			ContextLength:   m.ContextLength,
-			MaxOutputTokens: m.MaxOutputTokens,
-			Status:          m.Status,
-			CreatedAt:       m.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:          m.ID,
+			Name:        m.Name,
+			Owner:       m.Owner,
+			Description: m.Description,
+			Tags:        m.Tags,
+			Status:      m.Status,
+			CreatedAt:   m.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
@@ -56,13 +44,10 @@ func AdminGetModels(c *gin.Context) {
 
 // AdminCreateModelRequest 创建模型请求
 type AdminCreateModelRequest struct {
-	Name            string  `json:"name" binding:"required"`
-	Owner           string  `json:"owner" binding:"required"`
-	ModelType       string  `json:"model_type" binding:"required"`
-	RequestPath     string  `json:"request_path"`
-	Description     string  `json:"description"`
-	ContextLength   int     `json:"context_length"`
-	MaxOutputTokens int     `json:"max_output_tokens"`
+	Name        string `json:"name" binding:"required"`
+	Owner       string `json:"owner" binding:"required"`
+	Description string `json:"description"`
+	Tags        string `json:"tags"`
 }
 
 // AdminCreateModel 创建模型
@@ -73,28 +58,12 @@ func AdminCreateModel(c *gin.Context) {
 		return
 	}
 
-	validTypes := map[string]bool{"text": true, "image": true, "video": true, "audio": true}
-	if !validTypes[req.ModelType] {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "模型类型无效，必须为 text/image/video/audio"})
-		return
-	}
-
-	if req.ContextLength == 0 {
-		req.ContextLength = 4096
-	}
-	if req.MaxOutputTokens == 0 {
-		req.MaxOutputTokens = 4096
-	}
-
 	m := model.Model{
-		Name:            req.Name,
-		Owner:           req.Owner,
-		ModelType:       req.ModelType,
-		RequestPath:     req.RequestPath,
-		Description:     req.Description,
-		ContextLength:   req.ContextLength,
-		MaxOutputTokens: req.MaxOutputTokens,
-		Status:          1,
+		Name:        req.Name,
+		Owner:       req.Owner,
+		Description: req.Description,
+		Tags:        req.Tags,
+		Status:      1,
 	}
 
 	if err := model.CreateModel(&m); err != nil {
@@ -107,13 +76,10 @@ func AdminCreateModel(c *gin.Context) {
 
 // AdminUpdateModelRequest 更新模型请求
 type AdminUpdateModelRequest struct {
-	Name            string  `json:"name"`
-	Owner           string  `json:"owner"`
-	ModelType       string  `json:"model_type"`
-	RequestPath     string  `json:"request_path"`
-	Description     string  `json:"description"`
-	ContextLength   int     `json:"context_length"`
-	MaxOutputTokens int     `json:"max_output_tokens"`
+	Name        string `json:"name"`
+	Owner       string `json:"owner"`
+	Description string `json:"description"`
+	Tags        string `json:"tags"`
 }
 
 // AdminUpdateModel 更新模型
@@ -137,25 +103,11 @@ func AdminUpdateModel(c *gin.Context) {
 	if req.Owner != "" {
 		updates["owner"] = req.Owner
 	}
-	if req.ModelType != "" {
-		validTypes := map[string]bool{"text": true, "image": true, "video": true, "audio": true}
-		if !validTypes[req.ModelType] {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "模型类型无效"})
-			return
-		}
-		updates["model_type"] = req.ModelType
-	}
-	if req.RequestPath != "" {
-		updates["request_path"] = req.RequestPath
-	}
 	if req.Description != "" {
 		updates["description"] = req.Description
 	}
-	if req.ContextLength > 0 {
-		updates["context_length"] = req.ContextLength
-	}
-	if req.MaxOutputTokens > 0 {
-		updates["max_output_tokens"] = req.MaxOutputTokens
+	if req.Tags != "" {
+		updates["tags"] = req.Tags
 	}
 
 	if len(updates) == 0 {

@@ -7,8 +7,7 @@ import {
   PowerOff,
   Loader2,
   X,
-  Box,
-  Globe,
+  Coins,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
@@ -20,21 +19,7 @@ import {
   type AdminModel,
 } from '../../api/admin-model'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
-import { ModelEndpointManager } from '../../components/admin/ModelEndpointManager'
-
-const TYPE_OPTIONS = [
-  { value: 'text', label: '文本' },
-  { value: 'image', label: '图像' },
-  { value: 'video', label: '视频' },
-  { value: 'audio', label: '音频' },
-]
-
-const TYPE_BADGE: Record<string, string> = {
-  text: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  image: 'bg-purple-500/10 text-purple-600 dark:text-purple-400',
-  video: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  audio: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-}
+import { QuotaRuleManager } from '../../components/admin/QuotaRuleManager'
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
@@ -50,15 +35,15 @@ export function AdminModels() {
   const [editRow, setEditRow] = useState<AdminModel | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<AdminModel | null>(null)
-  const [epOpen, setEpOpen] = useState(false)
-  const [epRow, setEpRow] = useState<AdminModel | null>(null)
+  const [quotaOpen, setQuotaOpen] = useState(false)
+  const [quotaRow, setQuotaRow] = useState<AdminModel | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   // 表单
   const [formName, setFormName] = useState('')
   const [formOwner, setFormOwner] = useState('')
-  const [formType, setFormType] = useState('text')
   const [formDesc, setFormDesc] = useState('')
+  const [formTags, setFormTags] = useState('')
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
 
@@ -75,15 +60,17 @@ export function AdminModels() {
 
   const openCreate = () => {
     setEditRow(null)
-    setFormName(''); setFormOwner(''); setFormType('text')
-    setFormDesc(''); setFormError('')
+    setFormName(''); setFormOwner('')
+    setFormDesc(''); setFormTags('')
+    setFormError('')
     setDrawerOpen(true)
   }
 
   const openEdit = (m: AdminModel) => {
     setEditRow(m)
-    setFormName(m.name); setFormOwner(m.owner); setFormType(m.model_type)
-    setFormDesc(m.description); setFormError('')
+    setFormName(m.name); setFormOwner(m.owner)
+    setFormDesc(m.description); setFormTags(m.tags || '')
+    setFormError('')
     setDrawerOpen(true)
   }
 
@@ -94,17 +81,17 @@ export function AdminModels() {
     setFormSaving(true); setFormError('')
     try {
       if (editRow) {
-        const data: Record<string, string | number> = {}
+        const data: Record<string, string> = {}
         if (formName !== editRow.name) data.name = formName
         if (formOwner !== editRow.owner) data.owner = formOwner
-        if (formType !== editRow.model_type) data.model_type = formType
         if (formDesc !== editRow.description) data.description = formDesc
+        if (formTags !== (editRow.tags || '')) data.tags = formTags
         const res = await updateModel(editRow.id, data)
         if (!res.success) { setFormError(res.message || '更新失败'); return }
       } else {
         const res = await createModel({
-          name: formName, owner: formOwner, model_type: formType,
-          description: formDesc,
+          name: formName, owner: formOwner,
+          description: formDesc, tags: formTags,
         })
         if (!res.success) { setFormError(res.message || '创建失败'); return }
       }
@@ -170,7 +157,7 @@ export function AdminModels() {
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型开发者</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>模型ID</th>
-                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>类型</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>标签</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>描述</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>操作</th>
@@ -183,16 +170,21 @@ export function AdminModels() {
                 <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无模型</p></td></tr>
               ) : models.map((m) => {
                 const statusConf = STATUS_CONFIG[m.status] || STATUS_CONFIG[1]
+                const tags = m.tags ? m.tags.split(',').map(t => t.trim()).filter(Boolean) : []
                 return (
                   <tr key={m.id} className={cn('hover:bg-muted/20 transition-colors', m.status === 2 && 'opacity-50')}>
                     <td className='px-4 py-3'><span className='text-muted-foreground font-mono text-xs'>{m.id}</span></td>
                     <td className='px-4 py-3'><span className='text-sm'>{m.owner}</span></td>
                     <td className='px-4 py-3'><span className='font-medium'>{m.name}</span></td>
                     <td className='px-4 py-3'>
-                      <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium', TYPE_BADGE[m.model_type] || TYPE_BADGE.text)}>
-                        <Box className='size-3' />
-                        {TYPE_OPTIONS.find(t => t.value === m.model_type)?.label || m.model_type}
-                      </span>
+                      <div className='flex flex-wrap gap-1'>
+                        {tags.slice(0, 2).map((tag) => (
+                          <span key={tag} className='bg-muted/50 rounded px-1.5 py-0.5 text-[11px]'>{tag}</span>
+                        ))}
+                        {tags.length > 2 && (
+                          <span className='text-muted-foreground text-[11px]'>+{tags.length - 2}</span>
+                        )}
+                      </div>
                     </td>
                     <td className='px-4 py-3'>
                       <span className='text-muted-foreground text-sm'>{m.description || '-'}</span>
@@ -208,8 +200,8 @@ export function AdminModels() {
                         <button onClick={() => openEdit(m)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Pencil className='size-3.5' /> 编辑
                         </button>
-                        <button onClick={() => { setEpRow(m); setEpOpen(true) }} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
-                          <Globe className='size-3.5' /> 端点
+                        <button onClick={() => { setQuotaRow(m); setQuotaOpen(true) }} className='hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
+                          <Coins className='size-3.5' /> 积分
                         </button>
                         <button onClick={() => handleToggle(m)}
                           className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
@@ -255,11 +247,10 @@ export function AdminModels() {
               </div>
 
               <div className='space-y-2'>
-                <label className='text-sm font-medium'>模型类型</label>
-                <select value={formType} onChange={(e) => setFormType(e.target.value)}
-                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
-                  {TYPE_OPTIONS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+                <label className='text-sm font-medium'>标签 <span className='text-muted-foreground font-normal'>（可选）</span></label>
+                <input type='text' value={formTags} onChange={(e) => setFormTags(e.target.value)} placeholder='多个标签用逗号分隔，如: 对话,代码'
+                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none' />
+                <p className='text-muted-foreground text-xs'>用于模型广场的筛选和展示</p>
               </div>
 
               <div className='space-y-2'>
@@ -286,12 +277,12 @@ export function AdminModels() {
         description={<>确定要删除模型 <span className='text-foreground font-semibold'>{deleteRow?.name}</span> 吗？</>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
 
-      {epRow && (
-        <ModelEndpointManager
-          open={epOpen}
-          onOpenChange={setEpOpen}
-          modelId={epRow.id}
-          modelName={epRow.name}
+      {quotaRow && (
+        <QuotaRuleManager
+          open={quotaOpen}
+          onOpenChange={setQuotaOpen}
+          modelId={quotaRow.id}
+          modelName={quotaRow.name}
         />
       )}
     </div>

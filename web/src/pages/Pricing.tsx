@@ -1,39 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Link } from 'react-router-dom'
 import { Search, Copy, ChevronRight, LayoutGrid, List } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Header } from '../components/Header'
-import { PricingSidebar } from '../components/PricingSidebar'
-import type { PricingModel, PricingVendor, PricingData } from '../types/pricing'
+import type { PricingModel, PricingData } from '../types/pricing'
 
 // ── 筛选常量 ──
 const FILTER_ALL = '__all__'
 
-// ── 常量 ──
-const TOKEN_UNITS = ['K', 'M'] as const
-type TokenUnit = (typeof TOKEN_UNITS)[number]
-
 // ── 工具函数 ──
-function formatPrice(
-  model: PricingModel,
-  type: 'input' | 'output',
-  tokenUnit: TokenUnit
-): string {
-  if (model.quota_type === 1) {
-    return `¥${model.model_price.toFixed(4)}`
-  }
-  const base = model.model_ratio * 0.002 // 基础价格：0.002元/1K tokens
-  const multiplier = type === 'output' ? model.completion_ratio : 1
-  const unitDivisor = tokenUnit === 'M' ? 1 : 1000
-  return `¥${(base * multiplier * unitDivisor).toFixed(4)}`
-}
-
-function formatNumber(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(0)}M`
-  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
-  return n.toString()
-}
-
 function parseTags(tags?: string): string[] {
   if (!tags) return []
   return tags.split(',').map((t) => t.trim()).filter(Boolean)
@@ -54,18 +28,14 @@ function useCopyToClipboard() {
 // ── 模型卡片 ──
 function ModelCard({
   model,
-  tokenUnit,
   onClick,
 }: {
   model: PricingModel
-  tokenUnit: TokenUnit
   onClick: () => void
 }) {
   const { copy } = useCopyToClipboard()
   const tags = parseTags(model.tags)
   const initial = model.name?.charAt(0).toUpperCase() || '?'
-  const isTokenBased = model.quota_type === 0
-  const tokenUnitLabel = tokenUnit === 'K' ? '1K' : '1M'
 
   return (
     <div className='group relative flex flex-col rounded-xl border p-3 transition-colors hover:bg-muted/20 sm:p-5'>
@@ -82,29 +52,9 @@ function ModelCard({
               {model.name}
             </h3>
             <div className='mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm sm:mt-1 sm:gap-x-3'>
-              {isTokenBased ? (
-                <>
-                  <span className='text-muted-foreground whitespace-nowrap'>
-                    输入{' '}
-                    <span className='text-foreground font-mono font-semibold'>
-                      {formatPrice(model, 'input', tokenUnit)}
-                    </span>
-                  </span>
-                  <span className='text-muted-foreground whitespace-nowrap'>
-                    输出{' '}
-                    <span className='text-foreground font-mono font-semibold'>
-                      {formatPrice(model, 'output', tokenUnit)}
-                    </span>
-                  </span>
-                </>
-              ) : (
-                <span className='text-muted-foreground whitespace-nowrap'>
-                  <span className='text-foreground font-mono font-semibold'>
-                    ¥{model.model_price.toFixed(4)}
-                  </span>{' '}
-                  / 次
-                </span>
-              )}
+              <span className='text-muted-foreground whitespace-nowrap'>
+                {model.owner}
+              </span>
             </div>
           </div>
         </div>
@@ -136,26 +86,11 @@ function ModelCard({
 
       {/* 底部信息 */}
       <div className='mt-2 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 sm:mt-4 sm:gap-x-3'>
-        {model.vendor_name && (
-          <span className='text-muted-foreground text-sm font-medium'>
-            {model.vendor_name}
-          </span>
-        )}
-        {model.context_length > 0 && (
-          <span className='text-muted-foreground/70 text-xs'>
-            {formatNumber(model.context_length)} 上下文
-          </span>
-        )}
         {tags.slice(0, 3).map((tag) => (
           <span key={tag} className='text-muted-foreground/70 text-xs'>
             {tag}
           </span>
         ))}
-        {isTokenBased && (
-          <span className='text-muted-foreground/50 text-xs'>
-            {tokenUnitLabel} tokens
-          </span>
-        )}
       </div>
     </div>
   )
@@ -167,10 +102,7 @@ export function Pricing() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
-  const [tokenUnit, setTokenUnit] = useState<TokenUnit>('M')
-  const [vendorFilter, setVendorFilter] = useState(FILTER_ALL)
   const [tagFilter, setTagFilter] = useState(FILTER_ALL)
-  const [quotaTypeFilter, setQuotaTypeFilter] = useState(FILTER_ALL)
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card')
 
   // 获取定价数据
@@ -193,11 +125,6 @@ export function Pricing() {
     if (!data?.models) return []
     let models = data.models
 
-    // 供应商过滤
-    if (vendorFilter !== FILTER_ALL) {
-      models = models.filter((m) => m.vendor_name === vendorFilter)
-    }
-
     // 标签过滤
     if (tagFilter !== FILTER_ALL) {
       models = models.filter((m) =>
@@ -207,42 +134,38 @@ export function Pricing() {
       )
     }
 
-    // 计费类型过滤
-    if (quotaTypeFilter !== FILTER_ALL) {
-      models = models.filter((m) => m.quota_type === Number(quotaTypeFilter))
-    }
-
     // 搜索过滤
     if (search) {
       const q = search.toLowerCase()
       models = models.filter(
         (m) =>
           m.name.toLowerCase().includes(q) ||
-          m.vendor_name?.toLowerCase().includes(q) ||
+          m.owner?.toLowerCase().includes(q) ||
           m.tags?.toLowerCase().includes(q) ||
           m.description?.toLowerCase().includes(q)
       )
     }
 
     return models
-  }, [data?.models, search, vendorFilter, tagFilter, quotaTypeFilter])
+  }, [data?.models, search, tagFilter])
 
-  // 可用供应商列表
-  const vendors = data?.vendors || []
+  // 可用标签列表
+  const allTags = useMemo(() => {
+    if (!data?.models) return []
+    const tags = new Set<string>()
+    data.models.forEach((m) => {
+      parseTags(m.tags).forEach((t) => tags.add(t))
+    })
+    return Array.from(tags).sort()
+  }, [data?.models])
 
   // 清除所有筛选
   const clearFilters = useCallback(() => {
     setSearch('')
-    setVendorFilter(FILTER_ALL)
     setTagFilter(FILTER_ALL)
-    setQuotaTypeFilter(FILTER_ALL)
   }, [])
 
-  const hasActiveFilters =
-    search !== '' ||
-    vendorFilter !== FILTER_ALL ||
-    tagFilter !== FILTER_ALL ||
-    quotaTypeFilter !== FILTER_ALL
+  const hasActiveFilters = search !== '' || tagFilter !== FILTER_ALL
 
   // 加载状态
   if (loading) {
@@ -311,7 +234,7 @@ export function Pricing() {
               当前共有 <span className='text-foreground font-semibold'>{data?.models.length || 0}</span> 个模型可用
             </p>
             <p className='text-muted-foreground/60 mx-auto mt-2 max-w-2xl text-xs leading-relaxed sm:text-sm'>
-              探索精选 AI 模型，比较价格和能力，为每个场景选择合适的模型。
+              探索精选 AI 模型，为每个场景选择合适的模型。
             </p>
 
             {/* 搜索框 */}
@@ -321,7 +244,7 @@ export function Pricing() {
                 type='text'
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder='搜索模型名称、供应商、标签...'
+                placeholder='搜索模型名称、开发者、标签...'
                 className='bg-background border-border/60 ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-xl border pr-4 pl-10 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none'
               />
               {search && (
@@ -335,90 +258,84 @@ export function Pricing() {
             </div>
           </header>
 
-          {/* 侧边栏 + 内容区 */}
-          <div className='grid gap-4 xl:grid-cols-[330px_minmax(0,1fr)]'>
-            {/* 侧边栏（桌面端显示） */}
-            <PricingSidebar
-              vendorFilter={vendorFilter}
-              tagFilter={tagFilter}
-              quotaTypeFilter={quotaTypeFilter}
-              onVendorChange={setVendorFilter}
-              onTagChange={setTagFilter}
-              onQuotaTypeChange={setQuotaTypeFilter}
-              vendors={vendors}
-              models={data?.models || []}
-              hasActiveFilters={hasActiveFilters}
-              onClearFilters={clearFilters}
-              className='hover-scrollbar sticky top-4 hidden max-h-[calc(100dvh-2rem)] self-start overflow-y-auto xl:block'
-            />
-
-            {/* 主内容区 */}
-            <main className='min-w-0'>
-              {/* 工具栏 */}
-              <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-                <div className='flex items-center gap-2'>
-                  <span className='text-muted-foreground text-sm'>
-                    共 <span className='text-foreground font-medium'>{filteredModels.length}</span> 个模型
-                    {filteredModels.length !== (data?.models.length || 0) && (
-                      <span className='text-muted-foreground/60'> / {data?.models.length || 0}</span>
-                    )}
-                  </span>
-                  {hasActiveFilters && (
-                    <button
-                      onClick={clearFilters}
-                      className='text-muted-foreground hover:text-foreground text-xs underline underline-offset-2'
-                    >
-                      清除筛选
-                    </button>
+          {/* 标签筛选 */}
+          {allTags.length > 0 && (
+            <div className='mb-6 flex flex-wrap items-center gap-2'>
+              <button
+                onClick={() => setTagFilter(FILTER_ALL)}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  tagFilter === FILTER_ALL
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                )}
+              >
+                全部
+              </button>
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setTagFilter(tag)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                    tagFilter === tag
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                   )}
-                </div>
+                >
+                  {tag}
+                </button>
+              ))}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className='text-muted-foreground hover:text-foreground text-xs underline underline-offset-2'
+                >
+                  清除筛选
+                </button>
+              )}
+            </div>
+          )}
 
-                <div className='flex items-center gap-2'>
-                  {/* Token 单位切换 */}
-                  <div className='bg-muted/50 flex items-center rounded-lg p-0.5'>
-                    {TOKEN_UNITS.map((unit) => (
-                      <button
-                        key={unit}
-                        onClick={() => setTokenUnit(unit)}
-                        className={cn(
-                          'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                          tokenUnit === unit
-                            ? 'bg-background text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                      >
-                        {unit}
-                      </button>
-                    ))}
-                  </div>
+          {/* 工具栏 */}
+          <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
+            <div className='flex items-center gap-2'>
+              <span className='text-muted-foreground text-sm'>
+                共 <span className='text-foreground font-medium'>{filteredModels.length}</span> 个模型
+                {filteredModels.length !== (data?.models.length || 0) && (
+                  <span className='text-muted-foreground/60'> / {data?.models.length || 0}</span>
+                )}
+              </span>
+            </div>
 
-                  {/* 视图切换 */}
-                  <div className='bg-muted/50 flex items-center rounded-lg p-0.5'>
-                    <button
-                      onClick={() => setViewMode('card')}
-                      className={cn(
-                        'rounded-md p-1.5 transition-colors',
-                        viewMode === 'card'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <LayoutGrid className='size-3.5' />
-                    </button>
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={cn(
-                        'rounded-md p-1.5 transition-colors',
-                        viewMode === 'list'
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <List className='size-3.5' />
-                    </button>
-                  </div>
-                </div>
+            <div className='flex items-center gap-2'>
+              {/* 视图切换 */}
+              <div className='bg-muted/50 flex items-center rounded-lg p-0.5'>
+                <button
+                  onClick={() => setViewMode('card')}
+                  className={cn(
+                    'rounded-md p-1.5 transition-colors',
+                    viewMode === 'card'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <LayoutGrid className='size-3.5' />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    'rounded-md p-1.5 transition-colors',
+                    viewMode === 'list'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <List className='size-3.5' />
+                </button>
               </div>
+            </div>
+          </div>
 
           {/* 模型列表 */}
           {filteredModels.length === 0 ? (
@@ -439,7 +356,6 @@ export function Pricing() {
                 <ModelCard
                   key={model.id}
                   model={model}
-                  tokenUnit={tokenUnit}
                   onClick={() => {}}
                 />
               ))}
@@ -450,10 +366,8 @@ export function Pricing() {
                 <thead>
                   <tr className='bg-muted/30 border-border/40 border-b'>
                     <th className='px-4 py-3 text-left text-xs font-medium'>模型</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>供应商</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>输入价格</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>输出价格</th>
-                    <th className='px-4 py-3 text-left text-xs font-medium'>上下文</th>
+                    <th className='px-4 py-3 text-left text-xs font-medium'>开发者</th>
+                    <th className='px-4 py-3 text-left text-xs font-medium'>描述</th>
                     <th className='px-4 py-3 text-left text-xs font-medium'>标签</th>
                   </tr>
                 </thead>
@@ -467,16 +381,10 @@ export function Pricing() {
                         <span className='font-mono text-sm font-medium'>{model.name}</span>
                       </td>
                       <td className='text-muted-foreground px-4 py-3 text-sm'>
-                        {model.vendor_name || '-'}
+                        {model.owner || '-'}
                       </td>
-                      <td className='px-4 py-3 font-mono text-sm'>
-                        {formatPrice(model, 'input', tokenUnit)}
-                      </td>
-                      <td className='px-4 py-3 font-mono text-sm'>
-                        {formatPrice(model, 'output', tokenUnit)}
-                      </td>
-                      <td className='text-muted-foreground px-4 py-3 text-sm'>
-                        {model.context_length > 0 ? formatNumber(model.context_length) : '-'}
+                      <td className='text-muted-foreground px-4 py-3 text-sm max-w-xs truncate'>
+                        {model.description || '-'}
                       </td>
                       <td className='px-4 py-3'>
                         <div className='flex flex-wrap gap-1'>
@@ -498,13 +406,6 @@ export function Pricing() {
               </table>
             </div>
           )}
-
-          {/* 底部信息 */}
-          <div className='text-muted-foreground/60 mt-8 text-center text-xs'>
-            价格单位：每 {tokenUnit === 'K' ? '千' : '百万'} tokens（人民币）
-          </div>
-            </main>
-          </div>
         </div>
       </div>
 

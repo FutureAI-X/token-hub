@@ -67,6 +67,12 @@ func InitDB() error {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 
+	// 更新表注释
+	err = addTableComments()
+	if err != nil {
+		common.SysError("failed to add table comments: " + err.Error())
+	}
+
 	// 创建默认 root 用户（如果不存在）
 	err = CreateRootUserIfNeed()
 	if err != nil {
@@ -93,6 +99,8 @@ func migrateDB() error {
 		&Endpoint{},
 		&ModelEndpoint{},
 		&Task{},
+		&QuotaRule{},
+		&QuotaRuleItem{},
 	)
 	if err != nil {
 		return err
@@ -151,20 +159,34 @@ func addTableComments() error {
 		`COMMENT ON COLUMN models.id IS '模型唯一标识，自增主键'`,
 		`COMMENT ON COLUMN models.name IS '模型名称，全局唯一，用于 API 调用'`,
 		`COMMENT ON COLUMN models.description IS '模型描述信息'`,
-		`COMMENT ON COLUMN models.icon IS '模型图标标识'`,
 		`COMMENT ON COLUMN models.tags IS '模型标签，逗号分隔'`,
-		`COMMENT ON COLUMN models.vendor_id IS '供应商ID，关联 vendors 表'`,
 		`COMMENT ON COLUMN models.owner IS '模型所有者/提供商'`,
-		`COMMENT ON COLUMN models.quota_type IS '计费类型：0=按量计费, 1=按次计费'`,
-		`COMMENT ON COLUMN models.model_ratio IS '输入token倍率'`,
-		`COMMENT ON COLUMN models.completion_ratio IS '输出token倍率（相对输入的倍数）'`,
-		`COMMENT ON COLUMN models.model_price IS '按次计费价格（quota_type=1时使用）'`,
-		`COMMENT ON COLUMN models.context_length IS '最大上下文长度'`,
-		`COMMENT ON COLUMN models.max_output_tokens IS '最大输出token数'`,
 		`COMMENT ON COLUMN models.status IS '模型状态：1=启用, 2=禁用'`,
 		`COMMENT ON COLUMN models.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN models.updated_at IS '记录最后更新时间'`,
 		`COMMENT ON COLUMN models.deleted_at IS '软删除时间戳'`,
+
+		// quota_rules 表注释
+		`COMMENT ON TABLE quota_rules IS '积分扣除规则表，存储模型的积分扣除算法'`,
+		`COMMENT ON COLUMN quota_rules.id IS '规则唯一标识，自增主键'`,
+		`COMMENT ON COLUMN quota_rules.model_id IS '关联的模型ID，关联 models 表，唯一'`,
+		`COMMENT ON COLUMN quota_rules.rule_type IS '规则类型：per_request=按次计费'`,
+		`COMMENT ON COLUMN quota_rules.base_price IS '基础积分价格（每次请求扣除的积分数量）'`,
+		`COMMENT ON COLUMN quota_rules.description IS '规则描述'`,
+		`COMMENT ON COLUMN quota_rules.status IS '规则状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN quota_rules.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN quota_rules.updated_at IS '记录最后更新时间'`,
+		`COMMENT ON COLUMN quota_rules.deleted_at IS '软删除时间戳，非空表示已删除'`,
+
+		// quota_rule_items 表注释
+		`COMMENT ON TABLE quota_rule_items IS '积分规则参数映射表，存储差异化计费的参数配置'`,
+		`COMMENT ON COLUMN quota_rule_items.id IS '项唯一标识，自增主键'`,
+		`COMMENT ON COLUMN quota_rule_items.rule_id IS '关联的规则ID，关联 quota_rules 表'`,
+		`COMMENT ON COLUMN quota_rule_items.param_path IS '请求参数路径（如 size, quality, model）'`,
+		`COMMENT ON COLUMN quota_rule_items.param_value IS '参数值（如 1024x1024, high, gpt-4）'`,
+		`COMMENT ON COLUMN quota_rule_items.price IS '该参数值对应的积分价格'`,
+		`COMMENT ON COLUMN quota_rule_items.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN quota_rule_items.updated_at IS '记录最后更新时间'`,
 	}
 
 	for _, comment := range comments {
