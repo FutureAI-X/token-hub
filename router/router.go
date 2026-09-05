@@ -40,6 +40,9 @@ func SetRouter(server *gin.Engine) {
 		userRouter.DELETE("/tokens/:id", controller.DeleteToken)
 
 		userRouter.GET("/quota-logs", controller.GetQuotaLogs)
+
+		userRouter.GET("/task-logs", controller.GetUserTaskLogs)
+		userRouter.GET("/task-logs/:id", controller.GetUserTaskLogDetail)
 	}
 
 	// API 路由组

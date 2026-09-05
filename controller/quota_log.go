@@ -10,11 +10,12 @@ import (
 
 // GetQuotaLogs 获取当前用户的积分日志
 func GetQuotaLogs(c *gin.Context) {
-	userID := c.GetInt("userID")
-	if userID == 0 {
+	uid, exists := c.Get("user_id")
+	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "未登录"})
 		return
 	}
+	userID := uid.(int)
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))

@@ -1,4 +1,4 @@
-const BASE = '/api/admin'
+const BASE = '/api/user'
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('token')

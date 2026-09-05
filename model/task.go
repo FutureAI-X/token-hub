@@ -104,7 +104,7 @@ func GetPendingTasks() ([]Task, error) {
 	return tasks, err
 }
 
-// GetTaskLogs 获取任务日志（分页）
+// GetTaskLogs 获取任务日志（分页，管理员用）
 func GetTaskLogs(page, pageSize int, status string) ([]Task, int64, error) {
 	var tasks []Task
 	var total int64
@@ -120,6 +120,28 @@ func GetTaskLogs(page, pageSize int, status string) ([]Task, int64, error) {
 	}
 
 	// 分页查询
+	offset := (page - 1) * pageSize
+	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&tasks).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return tasks, total, nil
+}
+
+// GetTaskLogsByUserID 获取指定用户的任务日志（分页）
+func GetTaskLogsByUserID(userID int, page, pageSize int, status string) ([]Task, int64, error) {
+	var tasks []Task
+	var total int64
+
+	query := DB.Model(&Task{}).Where("user_id = ?", userID)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	offset := (page - 1) * pageSize
 	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&tasks).Error; err != nil {
 		return nil, 0, err
