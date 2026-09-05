@@ -98,5 +98,8 @@ func SetRouter(server *gin.Engine) {
 
 		adminRouter.PUT("/quota-rules/:id/status", controller.AdminUpdateQuotaRuleStatus)
 		adminRouter.DELETE("/quota-rules/:id", controller.AdminDeleteQuotaRule)
+
+		adminRouter.GET("/task-logs", controller.AdminGetTaskLogs)
+		adminRouter.GET("/task-logs/:id", controller.AdminGetTaskLogDetail)
 	}
 }
