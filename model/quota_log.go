@@ -24,17 +24,17 @@ type QuotaLog struct {
 	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
-// DeductQuota 扣除用户积分
-func DeductQuota(userID int, taskID string, amount int64, remark string) error {
+// DeductCredits 扣除用户积分
+func DeductCredits(userID int, taskID string, amount int64, remark string) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 扣除用户积分
-		result := tx.Model(&User{}).Where("id = ? AND quota >= ?", userID, amount).
-			Update("quota", gorm.Expr("quota - ?", amount))
+		result := tx.Model(&User{}).Where("id = ? AND credits >= ?", userID, amount).
+			Update("credits", gorm.Expr("credits - ?", amount))
 		if result.Error != nil {
 			return result.Error
 		}
 		if result.RowsAffected == 0 {
-			return ErrInsufficientQuota
+			return ErrInsufficientCredits
 		}
 
 		// 记录积分日志
@@ -49,12 +49,12 @@ func DeductQuota(userID int, taskID string, amount int64, remark string) error {
 	})
 }
 
-// RefundQuota 退还用户积分
-func RefundQuota(userID int, taskID string, amount int64, remark string) error {
+// RefundCredits 退还用户积分
+func RefundCredits(userID int, taskID string, amount int64, remark string) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 增加用户积分
 		if err := tx.Model(&User{}).Where("id = ?", userID).
-			Update("quota", gorm.Expr("quota + ?", amount)).Error; err != nil {
+			Update("credits", gorm.Expr("credits + ?", amount)).Error; err != nil {
 			return err
 		}
 

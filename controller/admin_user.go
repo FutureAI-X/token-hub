@@ -39,8 +39,8 @@ func AdminGetUsers(c *gin.Context) {
 		Role        int    `json:"role"`
 		Status      int    `json:"status"`
 		Email       string `json:"email"`
-		Quota       int64  `json:"quota"`
-		UsedQuota   int64  `json:"used_quota"`
+		Credits     int64  `json:"credits"`
+		UsedCredits int64  `json:"used_credits"`
 		CreatedAt   string `json:"created_at"`
 	}
 
@@ -53,8 +53,8 @@ func AdminGetUsers(c *gin.Context) {
 			Role:        u.Role,
 			Status:      u.Status,
 			Email:       u.Email,
-			Quota:       u.Quota,
-			UsedQuota:   u.UsedQuota,
+			Credits:     u.Credits,
+			UsedCredits: u.UsedCredits,
 			CreatedAt:   u.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
@@ -74,7 +74,7 @@ type AdminCreateUserRequest struct {
 	Password    string `json:"password" binding:"required"`
 	DisplayName string `json:"display_name"`
 	Role        int    `json:"role"`
-	Quota       int64  `json:"quota"`
+	Credits     int64  `json:"credits"`
 }
 
 // AdminCreateUser 管理员创建用户
@@ -108,7 +108,7 @@ func AdminCreateUser(c *gin.Context) {
 		DisplayName: req.DisplayName,
 		Role:        req.Role,
 		Status:      model.UserStatusEnabled,
-		Quota:       req.Quota,
+		Credits:     req.Credits,
 	}
 
 	if err := model.AdminCreateUser(&user); err != nil {
@@ -272,6 +272,15 @@ func AdminUpdateUserStatus(c *gin.Context) {
 		return
 	}
 
+	// 不允许通过状态接口恢复已删除的用户
+	if user.Status == model.UserStatusDeleted {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "已删除的用户无法修改状态",
+		})
+		return
+	}
+
 	if user.Role >= model.RoleRootUser {
 		c.JSON(http.StatusForbidden, gin.H{
 			"success": false,
@@ -294,14 +303,14 @@ func AdminUpdateUserStatus(c *gin.Context) {
 	})
 }
 
-// AdminAdjustUserQuotaRequest 积分调整请求
-type AdminAdjustUserQuotaRequest struct {
+// AdminAdjustUserCreditsRequest 积分调整请求
+type AdminAdjustUserCreditsRequest struct {
 	Mode  string `json:"mode" binding:"required"`
 	Value int64  `json:"value" binding:"required"`
 }
 
-// AdminAdjustUserQuota 管理员调整用户积分
-func AdminAdjustUserQuota(c *gin.Context) {
+// AdminAdjustUserCredits 管理员调整用户积分
+func AdminAdjustUserCredits(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -311,7 +320,7 @@ func AdminAdjustUserQuota(c *gin.Context) {
 		return
 	}
 
-	var req AdminAdjustUserQuotaRequest
+	var req AdminAdjustUserCreditsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -336,7 +345,7 @@ func AdminAdjustUserQuota(c *gin.Context) {
 		return
 	}
 
-	if err := model.AdjustUserQuota(id, req.Mode, req.Value); err != nil {
+	if err := model.AdjustUserCredits(id, req.Mode, req.Value); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "积分调整失败: " + err.Error(),

@@ -87,7 +87,7 @@ func UpdateTaskStatusWithRefund(taskID string, status string, queryResponse stri
 
 	if isFailed && !task.QuotaRefunded && task.QuotaAmount > 0 {
 		// 退还积分
-		if err := RefundQuota(task.UserID, taskID, task.QuotaAmount, "任务失败退还"); err != nil {
+		if err := RefundCredits(task.UserID, taskID, task.QuotaAmount, "任务失败退还"); err != nil {
 			return err
 		}
 		updates["quota_refunded"] = true

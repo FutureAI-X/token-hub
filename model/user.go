@@ -21,14 +21,16 @@ const (
 const (
 	UserStatusEnabled  = 1 // 启用
 	UserStatusDisabled = 2 // 禁用
+	UserStatusDeleted  = 3 // 已删除
 )
 
 // 错误定义
 var (
 	ErrInvalidCredentials   = errors.New("invalid username or password")
 	ErrUserDisabled         = errors.New("user is disabled")
+	ErrUserDeleted          = errors.New("user is deleted")
 	ErrUserEmptyCredentials = errors.New("username or password is empty")
-	ErrInsufficientQuota    = errors.New("insufficient quota")
+	ErrInsufficientCredits  = errors.New("insufficient credits")
 )
 
 // User 用户模型
@@ -54,14 +56,11 @@ type User struct {
 	// 用户邮箱，用于通知和找回密码，长度限制64字符
 	Email string `json:"email" gorm:"size:64"`
 
-	// 用户总配额，单位为 tokens，0 表示无配额
-	Quota int64 `json:"quota" gorm:"default:0"`
+	// 用户当前积分，0 表示无积分
+	Credits int64 `json:"credits" gorm:"default:0"`
 
-	// 已使用配额，单位为 tokens
-	UsedQuota int64 `json:"used_quota" gorm:"default:0"`
-
-	// 用户访问令牌，用于 API 认证，可为空
-	AccessToken *string `json:"access_token" gorm:"size:256"`
+	// 已使用积分
+	UsedCredits int64 `json:"used_credits" gorm:"default:0"`
 
 	// 记录创建时间，自动设置
 	CreatedAt time.Time `json:"created_at"`
@@ -197,6 +196,9 @@ func (user *User) ValidateAndFill() error {
 	}
 
 	// 检查用户状态
+	if user.Status == UserStatusDeleted {
+		return ErrUserDeleted
+	}
 	if user.Status != UserStatusEnabled {
 		return ErrUserDisabled
 	}
@@ -229,7 +231,7 @@ func GetUsers(page, pageSize int, keyword string) ([]User, int64, error) {
 	var users []User
 	var total int64
 
-	query := DB.Model(&User{})
+	query := DB.Model(&User{}).Where("status != ?", UserStatusDeleted)
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("username LIKE ? OR display_name LIKE ? OR email LIKE ?", like, like, like)
@@ -257,9 +259,9 @@ func AdminCreateUser(user *User) error {
 	return DB.Create(user).Error
 }
 
-// AdminDeleteUser 管理员删除用户（软删除）
+// AdminDeleteUser 管理员删除用户（标记为已删除）
 func AdminDeleteUser(id int) error {
-	return DB.Delete(&User{}, id).Error
+	return UpdateUserStatus(id, UserStatusDeleted)
 }
 
 // UpdateUserStatus 更新用户状态
@@ -272,8 +274,8 @@ func UpdateUser(id int, updates map[string]interface{}) error {
 	return DB.Model(&User{}).Where("id = ?", id).Updates(updates).Error
 }
 
-// AdjustUserQuota 调整用户积分
-func AdjustUserQuota(id int, mode string, value int64) error {
+// AdjustUserCredits 调整用户积分
+func AdjustUserCredits(id int, mode string, value int64) error {
 	user, err := GetUserByID(id)
 	if err != nil {
 		return err
@@ -281,15 +283,15 @@ func AdjustUserQuota(id int, mode string, value int64) error {
 
 	switch mode {
 	case "add":
-		return DB.Model(user).Update("quota", user.Quota+value).Error
+		return DB.Model(user).Update("credits", user.Credits+value).Error
 	case "subtract":
-		newQuota := user.Quota - value
-		if newQuota < 0 {
-			newQuota = 0
+		newCredits := user.Credits - value
+		if newCredits < 0 {
+			newCredits = 0
 		}
-		return DB.Model(user).Update("quota", newQuota).Error
+		return DB.Model(user).Update("credits", newCredits).Error
 	case "override":
-		return DB.Model(user).Update("quota", value).Error
+		return DB.Model(user).Update("credits", value).Error
 	default:
 		return errors.New("invalid mode: must be add, subtract, or override")
 	}
@@ -315,7 +317,7 @@ func CreateRootUserIfNeed() error {
 		DisplayName: "Root User",
 		Role:        RoleRootUser,
 		Status:      UserStatusEnabled,
-		Quota:       100000000,
+		Credits:     100000000,
 	}
 
 	if err := DB.Create(&rootUser).Error; err != nil {

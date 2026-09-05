@@ -152,7 +152,7 @@ func ImageGenerate(c *gin.Context) {
 
 	// 10. 扣除积分
 	if quotaAmount > 0 && userID > 0 {
-		if err := model.DeductQuota(userID, "", quotaAmount, "图像生成任务"); err != nil {
+		if err := model.DeductCredits(userID, "", quotaAmount, "图像生成任务"); err != nil {
 			common.SysErrorf("[ImageGenerate] 积分扣除失败: userID=%d, amount=%d, err=%v", userID, quotaAmount, err)
 			c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
 			return
@@ -175,7 +175,7 @@ func ImageGenerate(c *gin.Context) {
 		common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
 		// 退还积分
 		if quotaAmount > 0 && userID > 0 {
-			model.RefundQuota(userID, "", quotaAmount, "任务创建失败退还")
+			model.RefundCredits(userID, "", quotaAmount, "任务创建失败退还")
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
 		return

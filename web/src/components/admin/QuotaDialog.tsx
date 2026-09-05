@@ -8,7 +8,7 @@ interface QuotaDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   username: string
-  currentQuota: number
+  currentCredits: number
   loading?: boolean
   onConfirm: (mode: QuotaMode, value: number) => void
 }
@@ -23,7 +23,7 @@ export function QuotaDialog({
   open,
   onOpenChange,
   username,
-  currentQuota,
+  currentCredits,
   loading = false,
   onConfirm,
 }: QuotaDialogProps) {
@@ -60,11 +60,11 @@ export function QuotaDialog({
   const getPreview = () => {
     switch (mode) {
       case 'add':
-        return `当前积分: ${currentQuota.toLocaleString()}  + ${amountValue.toLocaleString()} = ${(currentQuota + amountValue).toLocaleString()}`
+        return `当前积分: ${currentCredits.toLocaleString()}  + ${amountValue.toLocaleString()} = ${(currentCredits + amountValue).toLocaleString()}`
       case 'subtract':
-        return `当前积分: ${currentQuota.toLocaleString()}  - ${amountValue.toLocaleString()} = ${Math.max(0, currentQuota - amountValue).toLocaleString()}`
+        return `当前积分: ${currentCredits.toLocaleString()}  - ${amountValue.toLocaleString()} = ${Math.max(0, currentCredits - amountValue).toLocaleString()}`
       case 'override':
-        return `当前积分: ${currentQuota.toLocaleString()} → ${amountValue.toLocaleString()}`
+        return `当前积分: ${currentCredits.toLocaleString()} → ${amountValue.toLocaleString()}`
     }
   }
 

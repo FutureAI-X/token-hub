@@ -11,8 +11,8 @@ interface UserInfo {
   role: number
   status: number
   email?: string
-  quota: number
-  used_quota: number
+  credits: number
+  used_credits: number
 }
 
 export function Profile() {
@@ -306,7 +306,7 @@ export function Profile() {
           </div>
           <div>
             <p className='text-muted-foreground text-xs'>当前积分</p>
-            <p className='text-2xl font-bold tabular-nums'>{formatPoints(user.quota - user.used_quota)}</p>
+            <p className='text-2xl font-bold tabular-nums'>{formatPoints(user.credits - user.used_credits)}</p>
           </div>
         </div>
       </div>

@@ -33,6 +33,11 @@ func Login(c *gin.Context) {
 
 	if err := user.ValidateAndFill(); err != nil {
 		switch err {
+		case model.ErrUserDeleted:
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": "用户已删除",
+			})
 		case model.ErrUserDisabled:
 			c.JSON(http.StatusForbidden, gin.H{
 				"success": false,
@@ -80,8 +85,8 @@ func Login(c *gin.Context) {
 				"role":         user.Role,
 				"status":       user.Status,
 				"email":        user.Email,
-				"quota":        user.Quota,
-				"used_quota":   user.UsedQuota,
+				"credits":      user.Credits,
+				"used_credits": user.UsedCredits,
 			},
 		},
 	})
@@ -224,8 +229,8 @@ func GetUserInfo(c *gin.Context) {
 			"role":         user.Role,
 			"status":       user.Status,
 			"email":        user.Email,
-			"quota":        user.Quota,
-			"used_quota":   user.UsedQuota,
+			"credits":      user.Credits,
+			"used_credits": user.UsedCredits,
 		},
 	})
 }

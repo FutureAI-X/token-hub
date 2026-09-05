@@ -21,8 +21,8 @@ export interface AdminUser {
   role: number
   status: number
   email: string
-  quota: number
-  used_quota: number
+  credits: number
+  used_credits: number
   created_at: string
 }
 
@@ -46,7 +46,7 @@ export function createUser(data: {
   password: string
   display_name?: string
   role?: number
-  quota?: number
+  credits?: number
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/users`, {
     method: 'POST',
@@ -78,8 +78,8 @@ export function updateUserStatus(id: number, status: number) {
 }
 
 // ── 积分调整 ──
-export function adjustUserQuota(id: number, mode: string, value: number) {
-  return request<{ success: boolean; message: string }>(`${BASE}/users/${id}/quota`, {
+export function adjustUserCredits(id: number, mode: string, value: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/users/${id}/credits`, {
     method: 'PUT',
     body: JSON.stringify({ mode, value }),
   })

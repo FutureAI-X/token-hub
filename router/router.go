@@ -64,7 +64,7 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.PUT("/users/:id", controller.AdminUpdateUser)
 		adminRouter.DELETE("/users/:id", controller.AdminDeleteUser)
 		adminRouter.PUT("/users/:id/status", controller.AdminUpdateUserStatus)
-		adminRouter.PUT("/users/:id/quota", controller.AdminAdjustUserQuota)
+		adminRouter.PUT("/users/:id/credits", controller.AdminAdjustUserCredits)
 		adminRouter.PUT("/users/:id/password", controller.AdminResetPassword)
 
 		adminRouter.GET("/vendors", controller.AdminGetVendors)

@@ -173,8 +173,8 @@ POST /api/auth/login
       "role": 100,
       "status": 1,
       "email": "",
-      "quota": 100000000,
-      "used_quota": 0
+      "credits": 100000000,
+      "used_credits": 0
     }
   }
 }

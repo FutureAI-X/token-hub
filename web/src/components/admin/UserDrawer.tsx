@@ -11,7 +11,7 @@ interface UserDrawerProps {
     password: string
     display_name: string
     role: number
-    quota: number
+    credits: number
   }) => Promise<void>
 }
 
@@ -73,7 +73,7 @@ export function UserDrawer({ open, onOpenChange, currentRow, onSubmit }: UserDra
         password,
         display_name: displayName.trim(),
         role,
-        quota: currentRow?.quota ?? 0,
+        credits: currentRow?.credits ?? 0,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : '操作失败')

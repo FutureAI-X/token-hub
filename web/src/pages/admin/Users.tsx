@@ -25,7 +25,7 @@ import {
   updateUser,
   deleteUser,
   updateUserStatus,
-  adjustUserQuota,
+  adjustUserCredits,
   resetUserPassword,
   type AdminUser,
 } from '../../api/admin'
@@ -44,6 +44,7 @@ const ROLE_CONFIG: Record<number, { label: string; icon: typeof Shield; classNam
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
   2: { label: '已禁用', className: 'bg-red-500/10 text-red-600 dark:text-red-400' },
+  3: { label: '已删除', className: 'bg-gray-500/10 text-gray-500 dark:text-gray-400' },
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
@@ -115,7 +116,7 @@ export function AdminUsers() {
     password: string
     display_name: string
     role: number
-    quota: number
+    credits: number
   }) => {
     if (editRow) {
       const updateData: { username?: string; display_name?: string; password?: string } = {}
@@ -188,7 +189,7 @@ export function AdminUsers() {
     if (!quotaRow) return
     setActionLoading(true)
     try {
-      await adjustUserQuota(quotaRow.id, mode, value)
+      await adjustUserCredits(quotaRow.id, mode, value)
       setQuotaDialogOpen(false)
       setQuotaRow(null)
       loadUsers()
@@ -322,13 +323,14 @@ export function AdminUsers() {
                   const statusConf = STATUS_CONFIG[user.status] || STATUS_CONFIG[1]
                   const RoleIcon = roleConf.icon
                   const isRoot = user.role >= 100
+                  const isDeleted = user.status === 3
 
                   return (
                     <tr
                       key={user.id}
                       className={cn(
                         'hover:bg-muted/20 transition-colors',
-                        user.status === 2 && 'opacity-50'
+                        (user.status === 2 || isDeleted) && 'opacity-50'
                       )}
                     >
                       <td className='px-4 py-3'>
@@ -348,15 +350,15 @@ export function AdminUsers() {
                       </td>
                       <td className='px-4 py-3'>
                         <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium', statusConf.className)}>
-                          <span className={cn('size-1.5 rounded-full', user.status === 1 ? 'bg-emerald-500' : 'bg-red-500')} />
+                          <span className={cn('size-1.5 rounded-full', user.status === 1 ? 'bg-emerald-500' : user.status === 3 ? 'bg-gray-400' : 'bg-red-500')} />
                           {statusConf.label}
                         </span>
                       </td>
                       <td className='px-4 py-3'>
                         <div className='flex flex-col gap-0.5'>
-                          <span className='font-mono text-sm'>{user.quota.toLocaleString()}</span>
+                          <span className='font-mono text-sm'>{user.credits.toLocaleString()}</span>
                           <span className='text-muted-foreground text-xs'>
-                            已用 {user.used_quota.toLocaleString()}
+                            已用 {user.used_credits.toLocaleString()}
                           </span>
                         </div>
                       </td>
@@ -371,7 +373,8 @@ export function AdminUsers() {
                           {/* 积分调整 */}
                           <button
                             onClick={() => handleQuotaClick(user)}
-                            className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'
+                            disabled={isDeleted}
+                            className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50'
                           >
                             <Coins className='size-3.5' />
                             积分
@@ -380,7 +383,7 @@ export function AdminUsers() {
                           {/* 密码重置 */}
                           <button
                             onClick={() => handleResetClick(user)}
-                            disabled={isRoot}
+                            disabled={isRoot || isDeleted}
                             className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50'
                           >
                             <KeyRound className='size-3.5' />
@@ -390,7 +393,8 @@ export function AdminUsers() {
                           {/* 编辑 */}
                           <button
                             onClick={() => handleEdit(user)}
-                            className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'
+                            disabled={isDeleted}
+                            className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50'
                           >
                             <Pencil className='size-3.5' />
                             编辑
@@ -399,7 +403,7 @@ export function AdminUsers() {
                           {/* 启用/禁用 */}
                           <button
                             onClick={() => handleToggleStatus(user)}
-                            disabled={isRoot}
+                            disabled={isRoot || isDeleted}
                             className={cn(
                               'inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50',
                               user.status === 1
@@ -417,7 +421,7 @@ export function AdminUsers() {
                           {/* 删除 */}
                           <button
                             onClick={() => handleDeleteClick(user)}
-                            disabled={isRoot}
+                            disabled={isRoot || isDeleted}
                             className='text-destructive hover:bg-destructive/10 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50'
                           >
                             <Trash2 className='size-3.5' />
@@ -528,7 +532,7 @@ export function AdminUsers() {
         open={quotaDialogOpen}
         onOpenChange={setQuotaDialogOpen}
         username={quotaRow?.username || ''}
-        currentQuota={quotaRow?.quota || 0}
+        currentCredits={quotaRow?.credits || 0}
         loading={actionLoading}
         onConfirm={handleQuotaConfirm}
       />

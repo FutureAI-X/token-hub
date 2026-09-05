@@ -5,8 +5,8 @@ import { Coins } from 'lucide-react'
 interface UserInfo {
   id: number
   username: string
-  quota: number
-  used_quota: number
+  credits: number
+  used_credits: number
 }
 
 export function Wallet() {
@@ -60,7 +60,7 @@ export function Wallet() {
     )
   }
 
-  const balance = user.quota - user.used_quota
+  const balance = user.credits - user.used_credits
 
   return (
     <div className='space-y-6'>
