@@ -12,10 +12,10 @@ import (
 type Task struct {
 	ID             int        `json:"id" gorm:"primaryKey"`
 	TaskID         string     `json:"task_id" gorm:"uniqueIndex;size:64;not null"`
-	UserID         int        `json:"user_id" gorm:"index;not null"`                     // 用户ID
-	VendorID       int        `json:"vendor_id" gorm:"index;not null"`
-	ModelID        int        `json:"model_id" gorm:"index;not null"`
-	EndpointID     int        `json:"endpoint_id" gorm:"index;not null"`
+	UserID         int        `json:"user_id" gorm:"index;not null;default:0"`             // 用户ID
+	VendorID       int        `json:"vendor_id" gorm:"index;not null;default:0"`
+	ModelID        int        `json:"model_id" gorm:"index;not null;default:0"`
+	EndpointID     int        `json:"endpoint_id" gorm:"index;not null;default:0"`
 	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
 	QuotaAmount    int64      `json:"quota_amount" gorm:"default:0"`                      // 消耗的积分数量
 	QuotaRefunded  bool       `json:"quota_refunded" gorm:"default:false"`                // 积分是否已退还

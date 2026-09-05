@@ -90,6 +90,13 @@ func InitDB() error {
 
 // migrateDB 数据库迁移
 func migrateDB() error {
+	// 清理 tasks 表中 user_id 为 NULL 的记录（AutoMigrate 加 NOT NULL 约束前需要先处理）
+	if err := DB.Exec("UPDATE tasks SET user_id = 0 WHERE user_id IS NULL").Error; err != nil {
+		common.SysLog("pre-migrate cleanup (tasks.user_id nulls): " + err.Error())
+	} else {
+		common.SysLog("pre-migrate cleanup: tasks.user_id nulls set to 0")
+	}
+
 	err := DB.AutoMigrate(
 		&User{},
 		&Token{},
