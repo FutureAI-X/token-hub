@@ -25,9 +25,10 @@ const (
 
 // 错误定义
 var (
-	ErrInvalidCredentials  = errors.New("invalid username or password")
-	ErrUserDisabled        = errors.New("user is disabled")
+	ErrInvalidCredentials   = errors.New("invalid username or password")
+	ErrUserDisabled         = errors.New("user is disabled")
 	ErrUserEmptyCredentials = errors.New("username or password is empty")
+	ErrInsufficientQuota    = errors.New("insufficient quota")
 )
 
 // User 用户模型
@@ -119,6 +120,16 @@ func GetTokensByUserID(userID int) ([]Token, error) {
 func GetTokenByID(id int) (*Token, error) {
 	var token Token
 	err := DB.Where("id = ?", id).First(&token).Error
+	if err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+// GetTokenByKey 根据 Key 获取 Token
+func GetTokenByKey(key string) (*Token, error) {
+	var token Token
+	err := DB.Where("key = ? AND status = ?", key, 1).First(&token).Error
 	if err != nil {
 		return nil, err
 	}

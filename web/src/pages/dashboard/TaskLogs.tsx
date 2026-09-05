@@ -120,6 +120,7 @@ export function TaskLogs() {
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>任务ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>积分消耗</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>创建时间</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>更新时间</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>操作</th>
@@ -129,7 +130,7 @@ export function TaskLogs() {
               {loading ? (
                 <tr><td colSpan={8} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : tasks.length === 0 ? (
-                <tr><td colSpan={6} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无任务记录</p></td></tr>
+                <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无任务记录</p></td></tr>
               ) : tasks.map((task) => {
                 const statusConf = STATUS_CONFIG[task.status] || STATUS_CONFIG.submitted
                 const StatusIcon = statusConf.icon
@@ -144,6 +145,14 @@ export function TaskLogs() {
                         <StatusIcon className='size-3' />
                         {statusConf.label}
                       </span>
+                    </td>
+                    <td className='px-4 py-3'>
+                      <div className='flex items-center gap-1'>
+                        <span className='text-xs font-medium'>{task.quota_amount}</span>
+                        {task.quota_refunded && (
+                          <span className='text-emerald-600 dark:text-emerald-400 text-[10px]'>已退还</span>
+                        )}
+                      </div>
                     </td>
                     <td className='px-4 py-3'><span className='text-muted-foreground text-xs'>{formatTime(task.created_at)}</span></td>
                     <td className='px-4 py-3'><span className='text-muted-foreground text-xs'>{formatTime(task.updated_at)}</span></td>
@@ -228,6 +237,15 @@ export function TaskLogs() {
                           )
                         })()}
                       </div>
+                    </div>
+                    <div>
+                      <label className='text-muted-foreground text-xs font-medium'>积分消耗</label>
+                      <p className='mt-1 text-sm'>
+                        {detailTask.quota_amount}
+                        {detailTask.quota_refunded && (
+                          <span className='text-emerald-600 dark:text-emerald-400 ml-2 text-xs'>已退还</span>
+                        )}
+                      </p>
                     </div>
                     <div>
                       <label className='text-muted-foreground text-xs font-medium'>创建时间</label>

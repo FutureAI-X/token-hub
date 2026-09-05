@@ -38,6 +38,8 @@ func SetRouter(server *gin.Engine) {
 		userRouter.POST("/tokens", controller.CreateToken)
 		userRouter.PUT("/tokens/:id", controller.UpdateToken)
 		userRouter.DELETE("/tokens/:id", controller.DeleteToken)
+
+		userRouter.GET("/quota-logs", controller.GetQuotaLogs)
 	}
 
 	// API 路由组

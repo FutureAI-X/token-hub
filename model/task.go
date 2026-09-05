@@ -12,10 +12,13 @@ import (
 type Task struct {
 	ID             int        `json:"id" gorm:"primaryKey"`
 	TaskID         string     `json:"task_id" gorm:"uniqueIndex;size:64;not null"`
+	UserID         int        `json:"user_id" gorm:"index;not null"`                     // 用户ID
 	VendorID       int        `json:"vendor_id" gorm:"index;not null"`
 	ModelID        int        `json:"model_id" gorm:"index;not null"`
 	EndpointID     int        `json:"endpoint_id" gorm:"index;not null"`
 	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
+	QuotaAmount    int64      `json:"quota_amount" gorm:"default:0"`                      // 消耗的积分数量
+	QuotaRefunded  bool       `json:"quota_refunded" gorm:"default:false"`                // 积分是否已退还
 	VendorResponse string     `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
 	QueryResponse  string     `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
 	CreatedAt      time.Time  `json:"created_at"`
@@ -53,6 +56,43 @@ func UpdateTaskStatus(taskID string, status string, queryResponse string) error 
 	if queryResponse != "" {
 		updates["query_response"] = queryResponse
 	}
+	return DB.Model(&Task{}).Where("task_id = ?", taskID).Updates(updates).Error
+}
+
+// UpdateTaskStatusWithRefund 更新任务状态，如果失败则退还积分
+func UpdateTaskStatusWithRefund(taskID string, status string, queryResponse string) error {
+	// 获取任务信息
+	task, err := GetTaskByTaskID(taskID)
+	if err != nil {
+		return err
+	}
+
+	// 更新任务状态
+	updates := map[string]interface{}{
+		"status": status,
+	}
+	if queryResponse != "" {
+		updates["query_response"] = queryResponse
+	}
+
+	// 如果任务失败且积分未退还，则退还积分
+	failedStatuses := []string{"failed", "cancelled", "call_fail"}
+	isFailed := false
+	for _, s := range failedStatuses {
+		if status == s {
+			isFailed = true
+			break
+		}
+	}
+
+	if isFailed && !task.QuotaRefunded && task.QuotaAmount > 0 {
+		// 退还积分
+		if err := RefundQuota(task.UserID, taskID, task.QuotaAmount, "任务失败退还"); err != nil {
+			return err
+		}
+		updates["quota_refunded"] = true
+	}
+
 	return DB.Model(&Task{}).Where("task_id = ?", taskID).Updates(updates).Error
 }
 

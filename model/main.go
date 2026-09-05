@@ -101,6 +101,7 @@ func migrateDB() error {
 		&Task{},
 		&QuotaRule{},
 		&QuotaRuleItem{},
+		&QuotaLog{},
 	)
 	if err != nil {
 		return err
@@ -187,6 +188,17 @@ func addTableComments() error {
 		`COMMENT ON COLUMN quota_rule_items.price IS '该参数值对应的积分价格'`,
 		`COMMENT ON COLUMN quota_rule_items.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN quota_rule_items.updated_at IS '记录最后更新时间'`,
+
+		// quota_logs 表注释
+		`COMMENT ON TABLE quota_logs IS '积分日志表，记录积分扣除和退还'`,
+		`COMMENT ON COLUMN quota_logs.id IS '日志唯一标识，自增主键'`,
+		`COMMENT ON COLUMN quota_logs.user_id IS '用户ID，关联 users 表'`,
+		`COMMENT ON COLUMN quota_logs.task_id IS '关联的任务ID'`,
+		`COMMENT ON COLUMN quota_logs.amount IS '积分数量（正数）'`,
+		`COMMENT ON COLUMN quota_logs.type IS '操作类型：deduct=扣除, refund=退还'`,
+		`COMMENT ON COLUMN quota_logs.remark IS '备注说明'`,
+		`COMMENT ON COLUMN quota_logs.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN quota_logs.deleted_at IS '软删除时间戳'`,
 	}
 
 	for _, comment := range comments {

@@ -120,20 +120,70 @@ func ImageGenerate(c *gin.Context) {
 		return
 	}
 
-	// 8. 调用成功，写入任务表
+	// 8. 计算积分消耗
+	quotaAmount := int64(0)
+	quotaRule, err := model.GetQuotaRuleByModelID(m.ID)
+	if err == nil && quotaRule != nil {
+		quotaAmount = int64(quotaRule.BasePrice)
+		// 检查是否有参数差异化定价
+		if len(quotaRule.Items) > 0 {
+			for _, item := range quotaRule.Items {
+				if paramVal, ok := reqBody[item.ParamPath].(string); ok && paramVal == item.ParamValue {
+					quotaAmount = int64(item.Price)
+					break
+				}
+			}
+		}
+	}
+
+	// 9. 获取当前用户ID
+	userID := c.GetInt("userID")
+	if userID == 0 {
+		// 从 Token 获取用户ID
+		tokenKey := c.GetHeader("Authorization")
+		if tokenKey != "" {
+			tokenKey = tokenKey[7:] // 移除 "Bearer " 前缀
+			token, err := model.GetTokenByKey(tokenKey)
+			if err == nil {
+				userID = token.UserID
+			}
+		}
+	}
+
+	// 10. 扣除积分
+	if quotaAmount > 0 && userID > 0 {
+		if err := model.DeductQuota(userID, "", quotaAmount, "图像生成任务"); err != nil {
+			common.SysErrorf("[ImageGenerate] 积分扣除失败: userID=%d, amount=%d, err=%v", userID, quotaAmount, err)
+			c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
+			return
+		}
+	}
+
+	// 11. 调用成功，写入任务表
 	vendorRespJSON, _ := json.Marshal(result.Data)
 	task := model.Task{
 		TaskID:         model.GenerateTaskID(),
+		UserID:         userID,
 		VendorID:       vendor.ID,
 		ModelID:        m.ID,
 		EndpointID:     endpoint.ID,
 		Status:         "submitted",
+		QuotaAmount:    quotaAmount,
 		VendorResponse: string(vendorRespJSON),
 	}
 	if err := model.CreateTask(&task); err != nil {
 		common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
+		// 退还积分
+		if quotaAmount > 0 && userID > 0 {
+			model.RefundQuota(userID, "", quotaAmount, "任务创建失败退还")
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
 		return
+	}
+
+	// 更新积分日志的任务ID
+	if quotaAmount > 0 && userID > 0 {
+		model.UpdateQuotaLogTaskID(userID, task.TaskID)
 	}
 
 	common.SysLogf("[ImageGenerate] 任务创建成功: taskId=%s, vendor=%s, model=%s", task.TaskID, vendor.Name, modelName)
@@ -181,7 +231,7 @@ func pollTaskStatus(taskID string, vendorResponse string, vendorName string, cfg
 	s := supplier.NewSupplier(vendorName, cfg)
 	if s == nil {
 		common.SysErrorf("[TaskPoll] 不支持的供应商: %s, taskID=%s", vendorName, taskID)
-		model.UpdateTaskStatus(taskID, "call_fail", "")
+		model.UpdateTaskStatusWithRefund(taskID, "call_fail", "")
 		return
 	}
 
@@ -205,7 +255,7 @@ func pollTaskStatus(taskID string, vendorResponse string, vendorName string, cfg
 			return
 
 		case "failed", "cancelled":
-			if err := model.UpdateTaskStatus(taskID, result.Status, ""); err != nil {
+			if err := model.UpdateTaskStatusWithRefund(taskID, result.Status, ""); err != nil {
 				common.SysErrorf("[TaskPoll] 更新任务状态失败: taskID=%s, err=%v", taskID, err)
 			} else {
 				common.SysLogf("[TaskPoll] 任务终止: taskID=%s, status=%s", taskID, result.Status)
@@ -224,7 +274,7 @@ func pollTaskStatus(taskID string, vendorResponse string, vendorName string, cfg
 
 	// 超过最大轮询次数
 	common.SysErrorf("[TaskPoll] 轮询超时: taskID=%s, 已轮询%d次", taskID, maxAttempts)
-	model.UpdateTaskStatus(taskID, "call_fail", `{"error":"poll timeout"}`)
+	model.UpdateTaskStatusWithRefund(taskID, "call_fail", `{"error":"poll timeout"}`)
 }
 
 // RecoverPendingTasks 启动时恢复未完成任务的轮询

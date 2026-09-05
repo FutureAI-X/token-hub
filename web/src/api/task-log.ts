@@ -16,11 +16,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 export interface TaskLog {
   id: number
   task_id: string
-  vendor_id: number
-  model_id: number
-  endpoint_id: number
   status: string
-  vendor_response?: string
+  quota_amount: number
+  quota_refunded: boolean
   query_response?: string
   created_at: string
   updated_at: string

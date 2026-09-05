@@ -16,6 +16,7 @@ import { Profile } from './pages/dashboard/Profile'
 import { Wallet } from './pages/dashboard/Wallet'
 import { ApiKeys } from './pages/dashboard/ApiKeys'
 import { TaskLogs } from './pages/dashboard/TaskLogs'
+import { QuotaLogs } from './pages/dashboard/QuotaLogs'
 import { AdminUsers } from './pages/admin/Users'
 import { AdminVendors } from './pages/admin/Vendors'
 import { AdminEndpoints } from './pages/admin/Endpoints'
@@ -37,6 +38,7 @@ function App() {
           <Route path='wallet' element={<Wallet />} />
           <Route path='api-keys' element={<ApiKeys />} />
           <Route path='task-logs' element={<TaskLogs />} />
+          <Route path='quota-logs' element={<QuotaLogs />} />
           <Route path='admin/users' element={<AdminUsers />} />
           <Route path='admin/endpoints' element={<AdminEndpoints />} />
           <Route path='admin/vendors' element={<AdminVendors />} />

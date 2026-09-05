@@ -28,27 +28,25 @@ func AdminGetTaskLogs(c *gin.Context) {
 	}
 
 	type taskResponse struct {
-		ID         int    `json:"id"`
-		TaskID     string `json:"task_id"`
-		VendorID   int    `json:"vendor_id"`
-		ModelID    int    `json:"model_id"`
-		EndpointID int    `json:"endpoint_id"`
-		Status     string `json:"status"`
-		CreatedAt  string `json:"created_at"`
-		UpdatedAt  string `json:"updated_at"`
+		ID           int    `json:"id"`
+		TaskID       string `json:"task_id"`
+		Status       string `json:"status"`
+		QuotaAmount  int64  `json:"quota_amount"`
+		QuotaRefunded bool  `json:"quota_refunded"`
+		CreatedAt    string `json:"created_at"`
+		UpdatedAt    string `json:"updated_at"`
 	}
 
 	items := make([]taskResponse, len(tasks))
 	for i, t := range tasks {
 		items[i] = taskResponse{
-			ID:         t.ID,
-			TaskID:     t.TaskID,
-			VendorID:   t.VendorID,
-			ModelID:    t.ModelID,
-			EndpointID: t.EndpointID,
-			Status:     t.Status,
-			CreatedAt:  t.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:  t.UpdatedAt.Format("2006-01-02 15:04:05"),
+			ID:            t.ID,
+			TaskID:        t.TaskID,
+			Status:        t.Status,
+			QuotaAmount:   t.QuotaAmount,
+			QuotaRefunded: t.QuotaRefunded,
+			CreatedAt:     t.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:     t.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
