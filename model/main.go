@@ -108,6 +108,7 @@ func migrateDB() error {
 		&Task{},
 		&CreditRule{},
 		&CreditRuleItem{},
+		&CreditRuleCondition{},
 		&CreditLog{},
 	)
 	if err != nil {
@@ -178,14 +179,21 @@ func addTableComments() error {
 		`COMMENT ON COLUMN credit_rules.updated_at IS '记录最后更新时间'`,
 
 		// credit_rule_items 表注释
-		`COMMENT ON TABLE credit_rule_items IS '积分规则参数映射表，存储差异化计费的参数配置'`,
+		`COMMENT ON TABLE credit_rule_items IS '积分规则参数组合映射表，存储差异化计费的参数组合'`,
 		`COMMENT ON COLUMN credit_rule_items.id IS '项唯一标识，自增主键'`,
 		`COMMENT ON COLUMN credit_rule_items.rule_id IS '关联的规则ID，关联 credit_rules 表'`,
-		`COMMENT ON COLUMN credit_rule_items.param_path IS '请求参数路径（如 size, quality, model）'`,
-		`COMMENT ON COLUMN credit_rule_items.param_value IS '参数值（如 1024x1024, high, gpt-4）'`,
-		`COMMENT ON COLUMN credit_rule_items.credits IS '该参数值对应的积分'`,
+		`COMMENT ON COLUMN credit_rule_items.credits IS '该参数组合命中部请求时对应的积分'`,
 		`COMMENT ON COLUMN credit_rule_items.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN credit_rule_items.updated_at IS '记录最后更新时间'`,
+
+		// credit_rule_conditions 表注释
+		`COMMENT ON TABLE credit_rule_conditions IS '积分规则参数组合条件表，存储每个映射项的 AND 条件'`,
+		`COMMENT ON COLUMN credit_rule_conditions.id IS '条件唯一标识，自增主键'`,
+		`COMMENT ON COLUMN credit_rule_conditions.item_id IS '所属映射项ID，关联 credit_rule_items 表'`,
+		`COMMENT ON COLUMN credit_rule_conditions.param_path IS '请求参数路径（如 resolution, quality, model）'`,
+		`COMMENT ON COLUMN credit_rule_conditions.param_value IS '参数值（如 1k, low, gpt-4）'`,
+		`COMMENT ON COLUMN credit_rule_conditions.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN credit_rule_conditions.updated_at IS '记录最后更新时间'`,
 
 		// credit_logs 表注释
 		`COMMENT ON TABLE credit_logs IS '积分日志表，记录积分扣除和退还'`,

@@ -87,12 +87,18 @@ export function syncModelEndpoints(modelId: number, endpointIds: number[]) {
 
 // ── 积分规则 ──
 
+export interface CreditRuleCondition {
+  id?: number
+  item_id?: number
+  param_path: string
+  param_value: string
+}
+
 export interface CreditRuleItem {
   id?: number
   rule_id?: number
-  param_path: string
-  param_value: string
   credits: number
+  conditions?: CreditRuleCondition[]
 }
 
 export interface CreditRule {

@@ -41,11 +41,16 @@ type AdminSaveCreditRuleRequest struct {
 	Items       []CreditRuleItemRequest `json:"items"`
 }
 
-// CreditRuleItemRequest 参数映射项请求
+// CreditRuleItemRequest 参数组合映射项请求（一组 AND 条件 → 积分）
 type CreditRuleItemRequest struct {
-	ParamPath  string  `json:"param_path" binding:"required"`
-	ParamValue string  `json:"param_value" binding:"required"`
-	Credits    float64 `json:"credits"`
+	Credits    float64                       `json:"credits"`
+	Conditions []CreditRuleConditionRequest  `json:"conditions"`
+}
+
+// CreditRuleConditionRequest 参数映射条件请求
+type CreditRuleConditionRequest struct {
+	ParamPath  string `json:"param_path" binding:"required"`
+	ParamValue string `json:"param_value" binding:"required"`
 }
 
 // AdminSaveCreditRule 保存积分规则（创建或更新）
@@ -88,12 +93,8 @@ func AdminSaveCreditRule(c *gin.Context) {
 		return
 	}
 
-	// 验证参数映射项
+	// 验证参数组合映射项
 	for i, item := range req.Items {
-		if item.ParamPath == "" || item.ParamValue == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "参数路径和参数值不能为空"})
-			return
-		}
 		if item.Credits <= 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "第 " + strconv.Itoa(i+1) + " 项的积分必须大于 0"})
 			return
@@ -101,6 +102,17 @@ func AdminSaveCreditRule(c *gin.Context) {
 		if !validateDecimalPlaces(item.Credits) {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "第 " + strconv.Itoa(i+1) + " 项的积分最多支持2位小数"})
 			return
+		}
+		// 至少 1 个条件，无上限
+		if len(item.Conditions) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "第 " + strconv.Itoa(i+1) + " 项至少需要 1 个参数条件"})
+			return
+		}
+		for j, cond := range item.Conditions {
+			if cond.ParamPath == "" || cond.ParamValue == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "第 " + strconv.Itoa(i+1) + " 项的第 " + strconv.Itoa(j+1) + " 个条件参数路径和参数值不能为空"})
+				return
+			}
 		}
 	}
 
@@ -119,15 +131,8 @@ func AdminSaveCreditRule(c *gin.Context) {
 			return
 		}
 
-		// 替换参数映射
-		items := make([]model.CreditRuleItem, len(req.Items))
-		for i, item := range req.Items {
-			items[i] = model.CreditRuleItem{
-				ParamPath:  item.ParamPath,
-				ParamValue: item.ParamValue,
-				Credits:    item.Credits,
-			}
-		}
+		// 替换参数组合映射
+		items := buildCreditRuleItems(req.Items)
 		if err := model.ReplaceCreditRuleItems(existingRule.ID, items); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "更新参数映射失败"})
 			return
@@ -144,15 +149,8 @@ func AdminSaveCreditRule(c *gin.Context) {
 			Status:      1,
 		}
 
-		// 构建参数映射
-		rule.Items = make([]model.CreditRuleItem, len(req.Items))
-		for i, item := range req.Items {
-			rule.Items[i] = model.CreditRuleItem{
-				ParamPath:  item.ParamPath,
-				ParamValue: item.ParamValue,
-				Credits:    item.Credits,
-			}
-		}
+		// 构建参数组合映射
+		rule.Items = buildCreditRuleItems(req.Items)
 
 		if err := model.CreateCreditRule(rule); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建积分规则失败: " + err.Error()})
@@ -161,6 +159,25 @@ func AdminSaveCreditRule(c *gin.Context) {
 
 		c.JSON(http.StatusOK, gin.H{"success": true, "message": "积分规则创建成功"})
 	}
+}
+
+// buildCreditRuleItems 将请求的组合映射转换为模型切片
+func buildCreditRuleItems(items []CreditRuleItemRequest) []model.CreditRuleItem {
+	result := make([]model.CreditRuleItem, len(items))
+	for i, item := range items {
+		result[i] = model.CreditRuleItem{
+			Credits: item.Credits,
+		}
+		conds := make([]model.CreditRuleCondition, len(item.Conditions))
+		for j, cond := range item.Conditions {
+			conds[j] = model.CreditRuleCondition{
+				ParamPath:  cond.ParamPath,
+				ParamValue: cond.ParamValue,
+			}
+		}
+		result[i].Conditions = conds
+	}
+	return result
 }
 
 // AdminDeleteCreditRule 删除积分规则

@@ -125,13 +125,18 @@ func ImageGenerate(c *gin.Context) {
 	creditRule, err := model.GetCreditRuleByModelID(m.ID)
 	if err == nil && creditRule != nil {
 		creditsAmount = int64(creditRule.BaseCredits)
-		// 检查是否有参数差异化定价
-		if len(creditRule.Items) > 0 {
-			for _, item := range creditRule.Items {
-				if paramVal, ok := reqBody[item.ParamPath].(string); ok && paramVal == item.ParamValue {
-					creditsAmount = int64(item.Credits)
+		// 检查是否有参数组合差异化定价：某组合的所有条件都命中才使用该积分
+		for _, item := range creditRule.Items {
+			matched := len(item.Conditions) > 0
+			for _, cond := range item.Conditions {
+				if paramVal, ok := reqBody[cond.ParamPath].(string); !ok || paramVal != cond.ParamValue {
+					matched = false
 					break
 				}
+			}
+			if matched {
+				creditsAmount = int64(item.Credits)
+				break
 			}
 		}
 	}

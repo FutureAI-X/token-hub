@@ -1,8 +1,13 @@
-export interface CreditRuleItem {
+export interface CreditRuleCondition {
   id: number
   param_path: string
   param_value: string
+}
+
+export interface CreditRuleItem {
+  id: number
   credits: number
+  conditions?: CreditRuleCondition[]
 }
 
 export interface CreditRule {

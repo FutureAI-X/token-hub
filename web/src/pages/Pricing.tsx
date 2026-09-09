@@ -113,7 +113,9 @@ function ModelCard({
                   key={item.id}
                   className='inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px]'
                 >
-                  <span className='text-muted-foreground'>{item.param_value}</span>
+                  <span className='text-muted-foreground'>
+                    {(item.conditions || []).map(c => `${c.param_path}=${c.param_value}`).join(' & ')}
+                  </span>
                   <span className='font-medium'>{item.credits.toFixed(2)}</span>
                 </span>
               ))}

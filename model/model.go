@@ -60,7 +60,7 @@ func GetPricingModels() ([]map[string]interface{}, error) {
 
 	// 获取所有启用的积分规则
 	var rules []CreditRule
-	DB.Where("status = ?", 1).Preload("Items").Find(&rules)
+	DB.Where("status = ?", 1).Preload("Items.Conditions").Find(&rules)
 
 	// 构建模型ID到规则的映射
 	ruleMap := make(map[int]*CreditRule)
