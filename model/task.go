@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Task 任务记录
@@ -60,22 +61,9 @@ func UpdateTaskStatus(taskID string, status string, queryResponse string) error 
 }
 
 // UpdateTaskStatusWithRefund 更新任务状态，如果失败则退还积分
+// 使用事务 + 行级锁（SELECT ... FOR UPDATE）串行化退款决策，避免并发重复退款
 func UpdateTaskStatusWithRefund(taskID string, status string, queryResponse string) error {
-	// 获取任务信息
-	task, err := GetTaskByTaskID(taskID)
-	if err != nil {
-		return err
-	}
-
-	// 更新任务状态
-	updates := map[string]interface{}{
-		"status": status,
-	}
-	if queryResponse != "" {
-		updates["query_response"] = queryResponse
-	}
-
-	// 如果任务失败且积分未退还，则退还积分
+	// 判断是否为失败终态
 	failedStatuses := []string{"failed", "cancelled", "call_fail"}
 	isFailed := false
 	for _, s := range failedStatuses {
@@ -85,15 +73,32 @@ func UpdateTaskStatusWithRefund(taskID string, status string, queryResponse stri
 		}
 	}
 
-	if isFailed && !task.CreditsRefunded && task.Credits > 0 {
-		// 退还积分
-		if err := RefundCredits(task.UserID, taskID, task.Credits, "任务失败退还"); err != nil {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		// 加行级锁读取任务，阻塞并发的同任务退款处理
+		var task Task
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("task_id = ?", taskID).First(&task).Error; err != nil {
 			return err
 		}
-		updates["credits_refunded"] = true
-	}
 
-	return DB.Model(&Task{}).Where("task_id = ?", taskID).Updates(updates).Error
+		updates := map[string]interface{}{
+			"status": status,
+		}
+		if queryResponse != "" {
+			updates["query_response"] = queryResponse
+		}
+
+		// 如果任务失败且积分未退还，则退还积分并把消耗更新为0
+		if isFailed && !task.CreditsRefunded && task.Credits > 0 {
+			if err := refundCreditsTx(tx, task.UserID, taskID, task.Credits, "任务失败退还"); err != nil {
+				return err
+			}
+			updates["credits_refunded"] = true
+			updates["credits"] = 0 // 消耗更新为0
+		}
+
+		return tx.Model(&Task{}).Where("task_id = ?", taskID).Updates(updates).Error
+	})
 }
 
 // GetPendingTasks 获取所有未完成的任务（用于启动时恢复轮询）

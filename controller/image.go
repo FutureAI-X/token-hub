@@ -289,7 +289,7 @@ func RecoverPendingTasks() {
 	for _, task := range tasks {
 		if task.VendorResponse == "" {
 			common.SysErrorf("[Recover] 任务缺少供应商响应，跳过: taskID=%s", task.TaskID)
-			model.UpdateTaskStatus(task.TaskID, "call_fail", `{"error":"missing vendor_response"}`)
+			model.UpdateTaskStatusWithRefund(task.TaskID, "call_fail", `{"error":"missing vendor_response"}`)
 			continue
 		}
 
@@ -297,7 +297,7 @@ func RecoverPendingTasks() {
 		vendor, err := model.GetVendorByID(task.VendorID)
 		if err != nil {
 			common.SysErrorf("[Recover] 供应商不存在，跳过: taskID=%s, vendorID=%d, err=%v", task.TaskID, task.VendorID, err)
-			model.UpdateTaskStatus(task.TaskID, "call_fail", `{"error":"vendor not found"}`)
+			model.UpdateTaskStatusWithRefund(task.TaskID, "call_fail", `{"error":"vendor not found"}`)
 			continue
 		}
 
@@ -305,7 +305,7 @@ func RecoverPendingTasks() {
 		apiKey, err := common.DecryptSecret(vendor.APIKey)
 		if err != nil {
 			common.SysErrorf("[Recover] 密钥解密失败，跳过: taskID=%s, vendor=%s, err=%v", task.TaskID, vendor.Name, err)
-			model.UpdateTaskStatus(task.TaskID, "call_fail", `{"error":"decrypt failed"}`)
+			model.UpdateTaskStatusWithRefund(task.TaskID, "call_fail", `{"error":"decrypt failed"}`)
 			continue
 		}
 

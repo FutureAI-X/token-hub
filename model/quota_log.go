@@ -31,47 +31,63 @@ func (CreditLog) TableName() string {
 // DeductCredits 扣除用户积分
 func DeductCredits(userID int, taskID string, amount int64, remark string) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
-		// 扣除用户积分
-		result := tx.Model(&User{}).Where("id = ? AND credits >= ?", userID, amount).
-			Update("credits", gorm.Expr("credits - ?", amount))
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected == 0 {
-			return ErrInsufficientCredits
-		}
-
-		// 记录积分日志
-		log := CreditLog{
-			UserID:  userID,
-			TaskID:  taskID,
-			Credits: amount,
-			Type:    CreditLogTypeDeduct,
-			Remark:  remark,
-		}
-		return tx.Create(&log).Error
+		return deductCreditsTx(tx, userID, taskID, amount, remark)
 	})
+}
+
+// deductCreditsTx 在给定事务中扣除用户积分（同事务维护 used_credits）
+func deductCreditsTx(tx *gorm.DB, userID int, taskID string, amount int64, remark string) error {
+	// 扣除用户积分并累计已用积分
+	result := tx.Model(&User{}).Where("id = ? AND credits >= ?", userID, amount).
+		Updates(map[string]interface{}{
+			"credits":      gorm.Expr("credits - ?", amount),
+			"used_credits": gorm.Expr("used_credits + ?", amount),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrInsufficientCredits
+	}
+
+	// 记录积分日志
+	log := CreditLog{
+		UserID:  userID,
+		TaskID:  taskID,
+		Credits: amount,
+		Type:    CreditLogTypeDeduct,
+		Remark:  remark,
+	}
+	return tx.Create(&log).Error
 }
 
 // RefundCredits 退还用户积分
 func RefundCredits(userID int, taskID string, amount int64, remark string) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
-		// 增加用户积分
-		if err := tx.Model(&User{}).Where("id = ?", userID).
-			Update("credits", gorm.Expr("credits + ?", amount)).Error; err != nil {
-			return err
-		}
-
-		// 记录积分日志
-		log := CreditLog{
-			UserID:  userID,
-			TaskID:  taskID,
-			Credits: amount,
-			Type:    CreditLogTypeRefund,
-			Remark:  remark,
-		}
-		return tx.Create(&log).Error
+		return refundCreditsTx(tx, userID, taskID, amount, remark)
 	})
+}
+
+// refundCreditsTx 在给定事务中退还用户积分（同事务维护 used_credits）
+func refundCreditsTx(tx *gorm.DB, userID int, taskID string, amount int64, remark string) error {
+	// 增加用户积分并减少已用积分（已用不足时按0计算，避免负值）
+	if err := tx.Model(&User{}).Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"credits":      gorm.Expr("credits + ?", amount),
+			"used_credits": gorm.Expr("GREATEST(used_credits - ?, 0)", amount),
+		}).Error; err != nil {
+		return err
+	}
+
+	// 记录积分日志
+	log := CreditLog{
+		UserID:  userID,
+		TaskID:  taskID,
+		Credits: amount,
+		Type:    CreditLogTypeRefund,
+		Remark:  remark,
+	}
+	return tx.Create(&log).Error
 }
 
 // GetCreditLogsByUserID 获取用户积分日志
