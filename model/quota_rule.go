@@ -6,16 +6,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// QuotaRuleType 计费规则类型
-type QuotaRuleType string
+// CreditRuleType 计费规则类型
+type CreditRuleType string
 
 const (
-	// QuotaRuleTypePerRequest 按次计费
-	QuotaRuleTypePerRequest QuotaRuleType = "per_request"
+	// CreditRuleTypePerRequest 按次计费
+	CreditRuleTypePerRequest CreditRuleType = "per_request"
 )
 
-// QuotaRule 积分扣除规则（每个模型一条）
-type QuotaRule struct {
+// CreditRule 积分扣除规则（每个模型一条）
+type CreditRule struct {
 	// 规则唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
@@ -23,10 +23,10 @@ type QuotaRule struct {
 	ModelID int `json:"model_id" gorm:"uniqueIndex;not null"`
 
 	// 规则类型：per_request=按次计费
-	RuleType QuotaRuleType `json:"rule_type" gorm:"size:32;not null;default:'per_request'"`
+	RuleType CreditRuleType `json:"rule_type" gorm:"size:32;not null;default:'per_request'"`
 
-	// 基础积分价格（每次请求扣除的积分数量）
-	BasePrice float64 `json:"base_price" gorm:"not null;default:0"`
+	// 基础积分（每次请求扣除的积分数量）
+	BaseCredits float64 `json:"base_credits" gorm:"not null;default:0"`
 
 	// 规则描述
 	Description string `json:"description,omitempty" gorm:"type:text"`
@@ -43,12 +43,17 @@ type QuotaRule struct {
 	// 软删除时间戳
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 
-	// 关联的参数价格映射
-	Items []QuotaRuleItem `json:"items,omitempty" gorm:"foreignKey:RuleID"`
+	// 关联的参数积分映射
+	Items []CreditRuleItem `json:"items,omitempty" gorm:"foreignKey:RuleID"`
 }
 
-// QuotaRuleItem 参数价格映射项
-type QuotaRuleItem struct {
+// TableName 指定表名（原为 quota_rules）
+func (CreditRule) TableName() string {
+	return "credit_rules"
+}
+
+// CreditRuleItem 参数积分映射项
+type CreditRuleItem struct {
 	// 项唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
@@ -61,8 +66,8 @@ type QuotaRuleItem struct {
 	// 参数值（如 "1024x1024", "high", "gpt-4"）
 	ParamValue string `json:"param_value" gorm:"size:255;not null"`
 
-	// 该参数值对应的积分价格
-	Price float64 `json:"price" gorm:"not null;default:0"`
+	// 该参数值对应的积分
+	Credits float64 `json:"credits" gorm:"not null;default:0"`
 
 	// 记录创建时间
 	CreatedAt time.Time `json:"created_at"`
@@ -71,9 +76,14 @@ type QuotaRuleItem struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// GetQuotaRuleByModelID 获取指定模型的积分规则（包含参数映射）
-func GetQuotaRuleByModelID(modelID int) (*QuotaRule, error) {
-	var rule QuotaRule
+// TableName 指定表名（原为 quota_rule_items）
+func (CreditRuleItem) TableName() string {
+	return "credit_rule_items"
+}
+
+// GetCreditRuleByModelID 获取指定模型的积分规则（包含参数映射）
+func GetCreditRuleByModelID(modelID int) (*CreditRule, error) {
+	var rule CreditRule
 	err := DB.Preload("Items").Where("model_id = ? AND status = ?", modelID, 1).First(&rule).Error
 	if err != nil {
 		return nil, err
@@ -81,9 +91,9 @@ func GetQuotaRuleByModelID(modelID int) (*QuotaRule, error) {
 	return &rule, nil
 }
 
-// GetQuotaRuleByID 根据 ID 获取积分规则
-func GetQuotaRuleByID(id int) (*QuotaRule, error) {
-	var rule QuotaRule
+// GetCreditRuleByID 根据 ID 获取积分规则
+func GetCreditRuleByID(id int) (*CreditRule, error) {
+	var rule CreditRule
 	err := DB.Preload("Items").Where("id = ?", id).First(&rule).Error
 	if err != nil {
 		return nil, err
@@ -91,50 +101,50 @@ func GetQuotaRuleByID(id int) (*QuotaRule, error) {
 	return &rule, nil
 }
 
-// CreateQuotaRule 创建积分规则（包含参数映射）
-func CreateQuotaRule(rule *QuotaRule) error {
+// CreateCreditRule 创建积分规则（包含参数映射）
+func CreateCreditRule(rule *CreditRule) error {
 	return DB.Create(rule).Error
 }
 
-// UpdateQuotaRule 更新积分规则
-func UpdateQuotaRule(id int, updates map[string]interface{}) error {
-	return DB.Model(&QuotaRule{}).Where("id = ?", id).Updates(updates).Error
+// UpdateCreditRule 更新积分规则
+func UpdateCreditRule(id int, updates map[string]interface{}) error {
+	return DB.Model(&CreditRule{}).Where("id = ?", id).Updates(updates).Error
 }
 
-// DeleteQuotaRule 删除积分规则（软删除，会级联删除参数映射）
-func DeleteQuotaRule(id int) error {
+// DeleteCreditRule 删除积分规则（软删除，会级联删除参数映射）
+func DeleteCreditRule(id int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 先删除参数映射
-		if err := tx.Where("rule_id = ?", id).Delete(&QuotaRuleItem{}).Error; err != nil {
+		if err := tx.Where("rule_id = ?", id).Delete(&CreditRuleItem{}).Error; err != nil {
 			return err
 		}
 		// 再删除规则
-		return tx.Delete(&QuotaRule{}, id).Error
+		return tx.Delete(&CreditRule{}, id).Error
 	})
 }
 
-// DeleteQuotaRuleByModelID 删除指定模型的积分规则
-func DeleteQuotaRuleByModelID(modelID int) error {
+// DeleteCreditRuleByModelID 删除指定模型的积分规则
+func DeleteCreditRuleByModelID(modelID int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 先获取规则 ID
-		var rule QuotaRule
+		var rule CreditRule
 		if err := tx.Where("model_id = ?", modelID).First(&rule).Error; err != nil {
 			return err
 		}
 		// 删除参数映射
-		if err := tx.Where("rule_id = ?", rule.ID).Delete(&QuotaRuleItem{}).Error; err != nil {
+		if err := tx.Where("rule_id = ?", rule.ID).Delete(&CreditRuleItem{}).Error; err != nil {
 			return err
 		}
 		// 删除规则
-		return tx.Delete(&QuotaRule{}, rule.ID).Error
+		return tx.Delete(&CreditRule{}, rule.ID).Error
 	})
 }
 
-// ReplaceQuotaRuleItems 替换规则的所有参数映射
-func ReplaceQuotaRuleItems(ruleID int, items []QuotaRuleItem) error {
+// ReplaceCreditRuleItems 替换规则的所有参数映射
+func ReplaceCreditRuleItems(ruleID int, items []CreditRuleItem) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 删除旧的映射
-		if err := tx.Where("rule_id = ?", ruleID).Delete(&QuotaRuleItem{}).Error; err != nil {
+		if err := tx.Where("rule_id = ?", ruleID).Delete(&CreditRuleItem{}).Error; err != nil {
 			return err
 		}
 		// 创建新的映射

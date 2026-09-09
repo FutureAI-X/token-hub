@@ -39,7 +39,7 @@ func SetRouter(server *gin.Engine) {
 		userRouter.PUT("/tokens/:id", controller.UpdateToken)
 		userRouter.DELETE("/tokens/:id", controller.DeleteToken)
 
-		userRouter.GET("/quota-logs", controller.GetQuotaLogs)
+		userRouter.GET("/credit-logs", controller.GetCreditLogs)
 
 		userRouter.GET("/task-logs", controller.GetUserTaskLogs)
 		userRouter.GET("/task-logs/:id", controller.GetUserTaskLogDetail)
@@ -98,12 +98,12 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.GET("/models/:id/endpoints", controller.GetModelEndpoints)
 		adminRouter.PUT("/models/:id/endpoints", controller.SyncModelEndpoints)
 
-		adminRouter.GET("/models/:id/quota-rule", controller.AdminGetQuotaRule)
-		adminRouter.POST("/models/:id/quota-rule", controller.AdminSaveQuotaRule)
-		adminRouter.DELETE("/models/:id/quota-rule", controller.AdminDeleteModelQuotaRule)
+		adminRouter.GET("/models/:id/credit-rule", controller.AdminGetCreditRule)
+		adminRouter.POST("/models/:id/credit-rule", controller.AdminSaveCreditRule)
+		adminRouter.DELETE("/models/:id/credit-rule", controller.AdminDeleteModelCreditRule)
 
-		adminRouter.PUT("/quota-rules/:id/status", controller.AdminUpdateQuotaRuleStatus)
-		adminRouter.DELETE("/quota-rules/:id", controller.AdminDeleteQuotaRule)
+		adminRouter.PUT("/credit-rules/:id/status", controller.AdminUpdateCreditRuleStatus)
+		adminRouter.DELETE("/credit-rules/:id", controller.AdminDeleteCreditRule)
 
 		adminRouter.GET("/task-logs", controller.AdminGetTaskLogs)
 		adminRouter.GET("/task-logs/:id", controller.AdminGetTaskLogDetail)

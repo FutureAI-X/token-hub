@@ -9,10 +9,10 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import {
-  getQuotaRule,
-  saveQuotaRule,
-  deleteModelQuotaRule,
-  type QuotaRule,
+  getCreditRule,
+  saveCreditRule,
+  deleteModelCreditRule,
+  type CreditRule,
 } from '../../api/admin-model'
 import { ConfirmDialog } from './ConfirmDialog'
 
@@ -20,59 +20,59 @@ const RULE_TYPE_OPTIONS = [
   { value: 'per_request', label: '按次计费' },
 ]
 
-// 表单项接口（price 用字符串处理输入）
-interface FormQuotaRuleItem {
+// 表单项接口（credits 用字符串处理输入）
+interface FormCreditRuleItem {
   param_path: string
   param_value: string
-  price: string
+  credits: string
 }
 
-interface QuotaRuleManagerProps {
+interface CreditRuleManagerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   modelId: number
   modelName: string
 }
 
-export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: QuotaRuleManagerProps) {
-  const [rule, setRule] = useState<QuotaRule | null>(null)
+export function CreditRuleManager({ open, onOpenChange, modelId, modelName }: CreditRuleManagerProps) {
+  const [rule, setRule] = useState<CreditRule | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   // 表单
   const [formRuleType, setFormRuleType] = useState('per_request')
-  const [formBasePrice, setFormBasePrice] = useState('')
+  const [formBaseCredits, setFormBaseCredits] = useState('')
   const [formDesc, setFormDesc] = useState('')
-  const [formItems, setFormItems] = useState<FormQuotaRuleItem[]>([])
+  const [formItems, setFormItems] = useState<FormCreditRuleItem[]>([])
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
 
-  // 格式化价格为两位小数
-  const formatPrice = (price: number): string => {
-    return price.toFixed(2)
+  // 格式化为两位小数
+  const formatCredits = (credits: number): string => {
+    return credits.toFixed(2)
   }
 
   const loadRule = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getQuotaRule(modelId)
+      const res = await getCreditRule(modelId)
       if (res.success && res.data) {
         setRule(res.data)
         setFormRuleType(res.data.rule_type)
-        setFormBasePrice(formatPrice(res.data.base_price))
+        setFormBaseCredits(formatCredits(res.data.base_credits))
         setFormDesc(res.data.description || '')
         // 将后端数据转换为表单格式
         setFormItems((res.data.items || []).map(item => ({
           param_path: item.param_path,
           param_value: item.param_value,
-          price: formatPrice(item.price),
+          credits: formatCredits(item.credits),
         })))
       } else {
         setRule(null)
         setFormRuleType('per_request')
-        setFormBasePrice('')
+        setFormBaseCredits('')
         setFormDesc('')
         setFormItems([])
       }
@@ -96,7 +96,7 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
 
   // 添加一行参数映射
   const addItem = () => {
-    setFormItems([...formItems, { param_path: '', param_value: '', price: '' }])
+    setFormItems([...formItems, { param_path: '', param_value: '', credits: '' }])
   }
 
   // 删除一行参数映射
@@ -105,20 +105,20 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
   }
 
   // 更新参数映射
-  const updateItem = (index: number, field: keyof FormQuotaRuleItem, value: string) => {
+  const updateItem = (index: number, field: keyof FormCreditRuleItem, value: string) => {
     const newItems = [...formItems]
     newItems[index] = { ...newItems[index], [field]: value }
     setFormItems(newItems)
   }
 
   const handleSave = async () => {
-    if (!formBasePrice || parseFloat(formBasePrice) <= 0) {
-      setFormError('基础价格必须大于 0')
+    if (!formBaseCredits || parseFloat(formBaseCredits) <= 0) {
+      setFormError('基础积分必须大于 0')
       return
     }
 
-    if (!validateDecimalPlaces(parseFloat(formBasePrice))) {
-      setFormError('基础价格最多支持2位小数')
+    if (!validateDecimalPlaces(parseFloat(formBaseCredits))) {
+      setFormError('基础积分最多支持2位小数')
       return
     }
 
@@ -133,13 +133,13 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
         setFormError(`第 ${i + 1} 项的参数值不能为空`)
         return
       }
-      const price = parseFloat(item.price)
-      if (isNaN(price) || price <= 0) {
-        setFormError(`第 ${i + 1} 项的价格必须大于 0`)
+      const credits = parseFloat(item.credits)
+      if (isNaN(credits) || credits <= 0) {
+        setFormError(`第 ${i + 1} 项的积分必须大于 0`)
         return
       }
-      if (!validateDecimalPlaces(price)) {
-        setFormError(`第 ${i + 1} 项的价格最多支持2位小数`)
+      if (!validateDecimalPlaces(credits)) {
+        setFormError(`第 ${i + 1} 项的积分最多支持2位小数`)
         return
       }
     }
@@ -147,14 +147,14 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
     setFormSaving(true)
     setFormError('')
     try {
-      const res = await saveQuotaRule(modelId, {
+      const res = await saveCreditRule(modelId, {
         rule_type: formRuleType,
-        base_price: parseFloat(formBasePrice),
+        base_credits: parseFloat(formBaseCredits),
         description: formDesc || undefined,
         items: formItems.length > 0 ? formItems.map(item => ({
           param_path: item.param_path,
           param_value: item.param_value,
-          price: parseFloat(item.price),
+          credits: parseFloat(item.credits),
         })) : undefined,
       })
       if (!res.success) {
@@ -175,11 +175,11 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
     if (!rule) return
     setActionLoading(true)
     try {
-      await deleteModelQuotaRule(modelId)
+      await deleteModelCreditRule(modelId)
       setDeleteOpen(false)
       setRule(null)
       setFormRuleType('per_request')
-      setFormBasePrice('')
+      setFormBaseCredits('')
       setFormDesc('')
       setFormItems([])
     } catch { /* ignore */ }
@@ -237,12 +237,12 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
                   </div>
 
                   <div className='space-y-2'>
-                    <label className='text-sm font-medium'>基础积分价格</label>
+                    <label className='text-sm font-medium'>基础积分</label>
                     <div className='flex items-center gap-2'>
                       <input
                         type='number'
-                        value={formBasePrice}
-                        onChange={(e) => setFormBasePrice(e.target.value)}
+                        value={formBaseCredits}
+                        onChange={(e) => setFormBaseCredits(e.target.value)}
                         placeholder='例如: 10'
                         min='0'
                         step='0.01'
@@ -266,12 +266,12 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
                 </div>
               </div>
 
-              {/* 参数价格映射 */}
+              {/* 参数积分映射 */}
               <div className='rounded-lg border border-border/60 p-5'>
                 <div className='mb-4 flex items-center justify-between'>
                   <div className='flex items-center gap-2'>
                     <Coins className='size-4 text-muted-foreground' />
-                    <h3 className='text-sm font-medium'>参数价格映射 <span className='text-muted-foreground font-normal'>（可选）</span></h3>
+                    <h3 className='text-sm font-medium'>参数积分映射 <span className='text-muted-foreground font-normal'>（可选）</span></h3>
                   </div>
                   <button
                     type='button'
@@ -283,7 +283,7 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
                 </div>
 
                 <p className='text-muted-foreground mb-4 text-xs'>
-                  为不同的请求参数值设置差异化价格，匹配时将覆盖基础价格
+                  为不同的请求参数值设置差异化积分，匹配时将覆盖基础积分
                 </p>
 
                 {formItems.length === 0 ? (
@@ -297,7 +297,7 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
                     <div className='grid grid-cols-[1fr_1.5fr_1fr_40px] gap-4 text-xs font-medium text-muted-foreground'>
                       <div>参数路径</div>
                       <div>参数值</div>
-                      <div>积分价格</div>
+                      <div>积分</div>
                       <div></div>
                     </div>
 
@@ -327,9 +327,9 @@ export function QuotaRuleManager({ open, onOpenChange, modelId, modelName }: Quo
                             <input
                               type='text'
                               inputMode='decimal'
-                              value={item.price}
-                              onChange={(e) => updateItem(index, 'price', e.target.value)}
-                              placeholder='价格'
+                              value={item.credits}
+                              onChange={(e) => updateItem(index, 'credits', e.target.value)}
+                              placeholder='积分'
                               className='border-border/60 bg-background focus-visible:ring-ring flex h-9 flex-1 rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'
                             />
                             <span className='text-muted-foreground text-xs whitespace-nowrap'>积分/次</span>

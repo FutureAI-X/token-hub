@@ -87,57 +87,57 @@ export function syncModelEndpoints(modelId: number, endpointIds: number[]) {
 
 // ── 积分规则 ──
 
-export interface QuotaRuleItem {
+export interface CreditRuleItem {
   id?: number
   rule_id?: number
   param_path: string
   param_value: string
-  price: number
+  credits: number
 }
 
-export interface QuotaRule {
+export interface CreditRule {
   id: number
   model_id: number
   rule_type: string
-  base_price: number
+  base_credits: number
   description?: string
   status: number
   created_at: string
   updated_at: string
-  items?: QuotaRuleItem[]
+  items?: CreditRuleItem[]
 }
 
-export function getQuotaRule(modelId: number) {
-  return request<{ success: boolean; data: QuotaRule | null }>(`${BASE}/models/${modelId}/quota-rule`)
+export function getCreditRule(modelId: number) {
+  return request<{ success: boolean; data: CreditRule | null }>(`${BASE}/models/${modelId}/credit-rule`)
 }
 
-export function saveQuotaRule(modelId: number, data: {
+export function saveCreditRule(modelId: number, data: {
   rule_type: string
-  base_price: number
+  base_credits: number
   description?: string
-  items?: QuotaRuleItem[]
+  items?: CreditRuleItem[]
 }) {
-  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/quota-rule`, {
+  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/credit-rule`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
-export function updateQuotaRuleStatus(id: number, status: number) {
-  return request<{ success: boolean; message: string }>(`${BASE}/quota-rules/${id}/status`, {
+export function updateCreditRuleStatus(id: number, status: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/credit-rules/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   })
 }
 
-export function deleteQuotaRule(id: number) {
-  return request<{ success: boolean; message: string }>(`${BASE}/quota-rules/${id}`, {
+export function deleteCreditRule(id: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/credit-rules/${id}`, {
     method: 'DELETE',
   })
 }
 
-export function deleteModelQuotaRule(modelId: number) {
-  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/quota-rule`, {
+export function deleteModelCreditRule(modelId: number) {
+  return request<{ success: boolean; message: string }>(`${BASE}/models/${modelId}/credit-rule`, {
     method: 'DELETE',
   })
 }

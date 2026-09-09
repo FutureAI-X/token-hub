@@ -20,7 +20,7 @@ import {
   type AdminModel,
 } from '../../api/admin-model'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
-import { QuotaRuleManager } from '../../components/admin/QuotaRuleManager'
+import { CreditRuleManager } from '../../components/admin/CreditRuleManager'
 import { ModelEndpointManager } from '../../components/admin/ModelEndpointManager'
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
@@ -37,8 +37,8 @@ export function AdminModels() {
   const [editRow, setEditRow] = useState<AdminModel | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<AdminModel | null>(null)
-  const [quotaOpen, setQuotaOpen] = useState(false)
-  const [quotaRow, setQuotaRow] = useState<AdminModel | null>(null)
+  const [creditOpen, setCreditOpen] = useState(false)
+  const [creditRow, setCreditRow] = useState<AdminModel | null>(null)
   const [endpointOpen, setEndpointOpen] = useState(false)
   const [endpointRow, setEndpointRow] = useState<AdminModel | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -204,7 +204,7 @@ export function AdminModels() {
                         <button onClick={() => openEdit(m)} className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Pencil className='size-3.5' /> 编辑
                         </button>
-                        <button onClick={() => { setQuotaRow(m); setQuotaOpen(true) }} className='hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
+                        <button onClick={() => { setCreditRow(m); setCreditOpen(true) }} className='hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Coins className='size-3.5' /> 积分
                         </button>
                         <button onClick={() => { setEndpointRow(m); setEndpointOpen(true) }} className='hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
@@ -284,12 +284,12 @@ export function AdminModels() {
         description={<>确定要删除模型 <span className='text-foreground font-semibold'>{deleteRow?.name}</span> 吗？</>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
 
-      {quotaRow && (
-        <QuotaRuleManager
-          open={quotaOpen}
-          onOpenChange={setQuotaOpen}
-          modelId={quotaRow.id}
-          modelName={quotaRow.name}
+      {creditRow && (
+        <CreditRuleManager
+          open={creditOpen}
+          onOpenChange={setCreditOpen}
+          modelId={creditRow.id}
+          modelName={creditRow.name}
         />
       )}
 

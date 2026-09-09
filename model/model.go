@@ -59,11 +59,11 @@ func GetPricingModels() ([]map[string]interface{}, error) {
 	}
 
 	// 获取所有启用的积分规则
-	var rules []QuotaRule
+	var rules []CreditRule
 	DB.Where("status = ?", 1).Preload("Items").Find(&rules)
 
 	// 构建模型ID到规则的映射
-	ruleMap := make(map[int]*QuotaRule)
+	ruleMap := make(map[int]*CreditRule)
 	for i := range rules {
 		ruleMap[rules[i].ModelID] = &rules[i]
 	}
@@ -80,7 +80,7 @@ func GetPricingModels() ([]map[string]interface{}, error) {
 			"status":      m.Status,
 		}
 		if rule, ok := ruleMap[m.ID]; ok {
-			item["quota_rule"] = rule
+			item["credit_rule"] = rule
 		}
 		result[i] = item
 	}

@@ -8,20 +8,25 @@ import (
 
 // 积分操作类型
 const (
-	QuotaLogTypeDeduct  = "deduct"  // 扣除
-	QuotaLogTypeRefund  = "refund"  // 退还
+	CreditLogTypeDeduct = "deduct" // 扣除
+	CreditLogTypeRefund = "refund" // 退还
 )
 
-// QuotaLog 积分日志
-type QuotaLog struct {
-	ID         int        `json:"id" gorm:"primaryKey"`
-	UserID     int        `json:"user_id" gorm:"index;not null"`
-	TaskID     string     `json:"task_id" gorm:"index;size:64"`
-	Amount     int64      `json:"amount" gorm:"not null"`              // 积分数量（正数）
-	Type       string     `json:"type" gorm:"size:32;not null"`        // deduct=扣除, refund=退还
-	Remark     string     `json:"remark" gorm:"size:255"`              // 备注
-	CreatedAt  time.Time  `json:"created_at"`
-	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
+// CreditLog 积分日志
+type CreditLog struct {
+	ID        int       `json:"id" gorm:"primaryKey"`
+	UserID    int       `json:"user_id" gorm:"index;not null"`
+	TaskID    string    `json:"task_id" gorm:"index;size:64"`
+	Credits   int64     `json:"credits" gorm:"not null"`        // 积分数量（正数）
+	Type      string    `json:"type" gorm:"size:32;not null"`   // deduct=扣除, refund=退还
+	Remark    string    `json:"remark" gorm:"size:255"`         // 备注
+	CreatedAt time.Time `json:"created_at"`
+	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
+}
+
+// TableName 指定表名（原为 quota_logs）
+func (CreditLog) TableName() string {
+	return "credit_logs"
 }
 
 // DeductCredits 扣除用户积分
@@ -38,12 +43,12 @@ func DeductCredits(userID int, taskID string, amount int64, remark string) error
 		}
 
 		// 记录积分日志
-		log := QuotaLog{
-			UserID: userID,
-			TaskID: taskID,
-			Amount: amount,
-			Type:   QuotaLogTypeDeduct,
-			Remark: remark,
+		log := CreditLog{
+			UserID:  userID,
+			TaskID:  taskID,
+			Credits: amount,
+			Type:    CreditLogTypeDeduct,
+			Remark:  remark,
 		}
 		return tx.Create(&log).Error
 	})
@@ -59,23 +64,23 @@ func RefundCredits(userID int, taskID string, amount int64, remark string) error
 		}
 
 		// 记录积分日志
-		log := QuotaLog{
-			UserID: userID,
-			TaskID: taskID,
-			Amount: amount,
-			Type:   QuotaLogTypeRefund,
-			Remark: remark,
+		log := CreditLog{
+			UserID:  userID,
+			TaskID:  taskID,
+			Credits: amount,
+			Type:    CreditLogTypeRefund,
+			Remark:  remark,
 		}
 		return tx.Create(&log).Error
 	})
 }
 
-// GetQuotaLogsByUserID 获取用户积分日志
-func GetQuotaLogsByUserID(userID int, page, pageSize int) ([]QuotaLog, int64, error) {
-	var logs []QuotaLog
+// GetCreditLogsByUserID 获取用户积分日志
+func GetCreditLogsByUserID(userID int, page, pageSize int) ([]CreditLog, int64, error) {
+	var logs []CreditLog
 	var total int64
 
-	query := DB.Model(&QuotaLog{}).Where("user_id = ?", userID)
+	query := DB.Model(&CreditLog{}).Where("user_id = ?", userID)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -89,19 +94,19 @@ func GetQuotaLogsByUserID(userID int, page, pageSize int) ([]QuotaLog, int64, er
 	return logs, total, nil
 }
 
-// GetQuotaLogByTaskID 根据任务ID获取积分日志
-func GetQuotaLogByTaskID(taskID string) (*QuotaLog, error) {
-	var log QuotaLog
-	err := DB.Where("task_id = ? AND type = ?", taskID, QuotaLogTypeDeduct).First(&log).Error
+// GetCreditLogByTaskID 根据任务ID获取积分日志
+func GetCreditLogByTaskID(taskID string) (*CreditLog, error) {
+	var log CreditLog
+	err := DB.Where("task_id = ? AND type = ?", taskID, CreditLogTypeDeduct).First(&log).Error
 	if err != nil {
 		return nil, err
 	}
 	return &log, nil
 }
 
-// UpdateQuotaLogTaskID 更新积分日志的任务ID
-func UpdateQuotaLogTaskID(userID int, taskID string) error {
-	return DB.Model(&QuotaLog{}).
-		Where("user_id = ? AND task_id = ? AND type = ?", userID, "", QuotaLogTypeDeduct).
+// UpdateCreditLogTaskID 更新积分日志的任务ID
+func UpdateCreditLogTaskID(userID int, taskID string) error {
+	return DB.Model(&CreditLog{}).
+		Where("user_id = ? AND task_id = ? AND type = ?", userID, "", CreditLogTypeDeduct).
 		Update("task_id", taskID).Error
 }

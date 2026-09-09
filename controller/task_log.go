@@ -31,8 +31,8 @@ func AdminGetTaskLogs(c *gin.Context) {
 		ID           int    `json:"id"`
 		TaskID       string `json:"task_id"`
 		Status       string `json:"status"`
-		QuotaAmount  int64  `json:"quota_amount"`
-		QuotaRefunded bool  `json:"quota_refunded"`
+		Credits      int64  `json:"credits"`
+		CreditsRefunded bool `json:"credits_refunded"`
 		CreatedAt    string `json:"created_at"`
 		UpdatedAt    string `json:"updated_at"`
 	}
@@ -43,8 +43,8 @@ func AdminGetTaskLogs(c *gin.Context) {
 			ID:            t.ID,
 			TaskID:        t.TaskID,
 			Status:        t.Status,
-			QuotaAmount:   t.QuotaAmount,
-			QuotaRefunded: t.QuotaRefunded,
+			Credits:        t.Credits,
+			CreditsRefunded: t.CreditsRefunded,
 			CreatedAt:     t.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:     t.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
@@ -108,8 +108,8 @@ func GetUserTaskLogs(c *gin.Context) {
 		ID            int    `json:"id"`
 		TaskID        string `json:"task_id"`
 		Status        string `json:"status"`
-		QuotaAmount   int64  `json:"quota_amount"`
-		QuotaRefunded bool   `json:"quota_refunded"`
+		Credits        int64  `json:"credits"`
+		CreditsRefunded bool  `json:"credits_refunded"`
 		CreatedAt     string `json:"created_at"`
 		UpdatedAt     string `json:"updated_at"`
 	}
@@ -120,8 +120,8 @@ func GetUserTaskLogs(c *gin.Context) {
 			ID:            t.ID,
 			TaskID:        t.TaskID,
 			Status:        t.Status,
-			QuotaAmount:   t.QuotaAmount,
-			QuotaRefunded: t.QuotaRefunded,
+			Credits:        t.Credits,
+			CreditsRefunded: t.CreditsRefunded,
 			CreatedAt:     t.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:     t.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}

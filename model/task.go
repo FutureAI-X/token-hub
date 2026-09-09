@@ -17,8 +17,8 @@ type Task struct {
 	ModelID        int        `json:"model_id" gorm:"index;not null;default:0"`
 	EndpointID     int        `json:"endpoint_id" gorm:"index;not null;default:0"`
 	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
-	QuotaAmount    int64      `json:"quota_amount" gorm:"default:0"`                      // 消耗的积分数量
-	QuotaRefunded  bool       `json:"quota_refunded" gorm:"default:false"`                // 积分是否已退还
+	Credits        int64      `json:"credits" gorm:"default:0"`                           // 消耗的积分数量
+	CreditsRefunded bool      `json:"credits_refunded" gorm:"default:false"`              // 积分是否已退还
 	VendorResponse string     `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
 	QueryResponse  string     `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
 	CreatedAt      time.Time  `json:"created_at"`
@@ -85,12 +85,12 @@ func UpdateTaskStatusWithRefund(taskID string, status string, queryResponse stri
 		}
 	}
 
-	if isFailed && !task.QuotaRefunded && task.QuotaAmount > 0 {
+	if isFailed && !task.CreditsRefunded && task.Credits > 0 {
 		// 退还积分
-		if err := RefundCredits(task.UserID, taskID, task.QuotaAmount, "任务失败退还"); err != nil {
+		if err := RefundCredits(task.UserID, taskID, task.Credits, "任务失败退还"); err != nil {
 			return err
 		}
-		updates["quota_refunded"] = true
+		updates["credits_refunded"] = true
 	}
 
 	return DB.Model(&Task{}).Where("task_id = ?", taskID).Updates(updates).Error

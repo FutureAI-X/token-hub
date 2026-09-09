@@ -28,7 +28,7 @@ export function DashboardLayout() {
         items: [
           { title: '个人资料', href: '/dashboard/profile', icon: User },
           { title: '积分', href: '/dashboard/wallet', icon: Coins },
-          { title: '积分日志', href: '/dashboard/quota-logs', icon: History },
+          { title: '积分日志', href: '/dashboard/credit-logs', icon: History },
           { title: 'API Keys', href: '/dashboard/api-keys', icon: Key },
           { title: '任务日志', href: '/dashboard/task-logs', icon: FileText },
         ],

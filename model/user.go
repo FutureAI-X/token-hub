@@ -35,41 +35,38 @@ var (
 
 // User 用户模型
 type User struct {
-	// 用户唯一标识，自增主键
+	// 唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
 	// 用户名，用于登录，全局唯一，长度限制32字符
 	Username string `json:"username" gorm:"uniqueIndex;size:32;not null"`
 
-	// 密码哈希值，使用 bcrypt 加密存储，JSON 序列化时忽略
-	Password string `json:"-" gorm:"not null"`
-
 	// 显示名称，用于界面展示，长度限制64字符
 	DisplayName string `json:"display_name" gorm:"size:64"`
 
-	// 用户角色：1=普通用户, 10=管理员, 100=root 超级管理员
+	// 角色：1=普通用户, 10=管理员, 100=root 超级管理员
 	Role int `json:"role" gorm:"default:1"`
 
-	// 用户状态：1=启用, 2=禁用
+	// 状态：1=启用, 2=禁用, 3=已删除
 	Status int `json:"status" gorm:"default:1"`
 
-	// 用户邮箱，用于通知和找回密码，长度限制64字符
-	Email string `json:"email" gorm:"size:64"`
-
-	// 用户当前积分，0 表示无积分
+	// 当前积分，0 表示无积分
 	Credits int64 `json:"credits" gorm:"default:0"`
 
 	// 已使用积分
 	UsedCredits int64 `json:"used_credits" gorm:"default:0"`
+
+	// 邮箱，用于通知和找回密码，长度限制64字符
+	Email string `json:"email" gorm:"size:64"`
+
+	// 密码哈希值，使用 bcrypt 加密存储，JSON 序列化时忽略
+	Password string `json:"-" gorm:"not null"`
 
 	// 记录创建时间，自动设置
 	CreatedAt time.Time `json:"created_at"`
 
 	// 记录最后更新时间，自动更新
 	UpdatedAt time.Time `json:"updated_at"`
-
-	// 软删除时间戳，非空表示已删除
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 // Token API Token 模型（对应 api_keys 表，存储用户 API 访问密钥）
@@ -209,20 +206,20 @@ func (user *User) ValidateAndFill() error {
 	return nil
 }
 
-// GetUserByUsername 根据用户名获取用户
+// GetUserByUsername 根据用户名获取用户（不含已删除）
 func GetUserByUsername(username string) (*User, error) {
 	var user User
-	err := DB.Where("username = ?", username).First(&user).Error
+	err := DB.Where("username = ? AND status != ?", username, UserStatusDeleted).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-// GetUserByID 根据ID获取用户
+// GetUserByID 根据ID获取用户（不含已删除）
 func GetUserByID(id int) (*User, error) {
 	var user User
-	err := DB.Where("id = ?", id).First(&user).Error
+	err := DB.Where("id = ? AND status != ?", id, UserStatusDeleted).First(&user).Error
 	if err != nil {
 		return nil, err
 	}

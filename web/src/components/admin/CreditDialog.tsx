@@ -2,32 +2,32 @@ import { useState, useEffect, useRef } from 'react'
 import { Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
-type QuotaMode = 'add' | 'subtract' | 'override'
+type CreditMode = 'add' | 'subtract' | 'override'
 
-interface QuotaDialogProps {
+interface CreditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   username: string
   currentCredits: number
   loading?: boolean
-  onConfirm: (mode: QuotaMode, value: number) => void
+  onConfirm: (mode: CreditMode, value: number) => void
 }
 
-const MODES: { key: QuotaMode; label: string }[] = [
+const MODES: { key: CreditMode; label: string }[] = [
   { key: 'add', label: '添加' },
   { key: 'subtract', label: '减少' },
   { key: 'override', label: '覆盖' },
 ]
 
-export function QuotaDialog({
+export function CreditDialog({
   open,
   onOpenChange,
   username,
   currentCredits,
   loading = false,
   onConfirm,
-}: QuotaDialogProps) {
-  const [mode, setMode] = useState<QuotaMode>('add')
+}: CreditDialogProps) {
+  const [mode, setMode] = useState<CreditMode>('add')
   const [amount, setAmount] = useState('')
   const overlayRef = useRef<HTMLDivElement>(null)
 

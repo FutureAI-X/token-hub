@@ -1,17 +1,17 @@
-export interface QuotaRuleItem {
+export interface CreditRuleItem {
   id: number
   param_path: string
   param_value: string
-  price: number
+  credits: number
 }
 
-export interface QuotaRule {
+export interface CreditRule {
   id: number
   model_id: number
   rule_type: string
-  base_price: number
+  base_credits: number
   description?: string
-  items?: QuotaRuleItem[]
+  items?: CreditRuleItem[]
 }
 
 export interface PricingModel {
@@ -21,7 +21,7 @@ export interface PricingModel {
   tags?: string
   owner: string
   status: number
-  quota_rule?: QuotaRule
+  credit_rule?: CreditRule
 }
 
 export interface PricingData {

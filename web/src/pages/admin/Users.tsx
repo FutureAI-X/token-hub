@@ -30,7 +30,7 @@ import {
   type AdminUser,
 } from '../../api/admin'
 import { UserDrawer } from '../../components/admin/UserDrawer'
-import { QuotaDialog } from '../../components/admin/QuotaDialog'
+import { CreditDialog } from '../../components/admin/CreditDialog'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
 
 // ── 角色配置 ──
@@ -63,8 +63,8 @@ export function AdminUsers() {
   const [editRow, setEditRow] = useState<AdminUser | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<AdminUser | null>(null)
-  const [quotaDialogOpen, setQuotaDialogOpen] = useState(false)
-  const [quotaRow, setQuotaRow] = useState<AdminUser | null>(null)
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false)
+  const [creditRow, setCreditRow] = useState<AdminUser | null>(null)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetRow, setResetRow] = useState<AdminUser | null>(null)
   const [resetResultOpen, setResetResultOpen] = useState(false)
@@ -180,18 +180,18 @@ export function AdminUsers() {
   }
 
   // ── 积分调整 ──
-  const handleQuotaClick = (user: AdminUser) => {
-    setQuotaRow(user)
-    setQuotaDialogOpen(true)
+  const handleCreditClick = (user: AdminUser) => {
+    setCreditRow(user)
+    setCreditDialogOpen(true)
   }
 
-  const handleQuotaConfirm = async (mode: string, value: number) => {
-    if (!quotaRow) return
+  const handleCreditConfirm = async (mode: string, value: number) => {
+    if (!creditRow) return
     setActionLoading(true)
     try {
-      await adjustUserCredits(quotaRow.id, mode, value)
-      setQuotaDialogOpen(false)
-      setQuotaRow(null)
+      await adjustUserCredits(creditRow.id, mode, value)
+      setCreditDialogOpen(false)
+      setCreditRow(null)
       loadUsers()
     } catch {
       // ignore
@@ -372,7 +372,7 @@ export function AdminUsers() {
                         <div className='flex items-center gap-1'>
                           {/* 积分调整 */}
                           <button
-                            onClick={() => handleQuotaClick(user)}
+                            onClick={() => handleCreditClick(user)}
                             disabled={isDeleted}
                             className='hover:bg-muted inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors disabled:opacity-50'
                           >
@@ -528,13 +528,13 @@ export function AdminUsers() {
       />
 
       {/* 积分调整弹窗 */}
-      <QuotaDialog
-        open={quotaDialogOpen}
-        onOpenChange={setQuotaDialogOpen}
-        username={quotaRow?.username || ''}
-        currentCredits={quotaRow?.credits || 0}
+      <CreditDialog
+        open={creditDialogOpen}
+        onOpenChange={setCreditDialogOpen}
+        username={creditRow?.username || ''}
+        currentCredits={creditRow?.credits || 0}
         loading={actionLoading}
-        onConfirm={handleQuotaConfirm}
+        onConfirm={handleCreditConfirm}
       />
 
       {/* 密码重置确认弹窗 */}

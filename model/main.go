@@ -106,9 +106,9 @@ func migrateDB() error {
 		&Endpoint{},
 		&ModelEndpoint{},
 		&Task{},
-		&QuotaRule{},
-		&QuotaRuleItem{},
-		&QuotaLog{},
+		&CreditRule{},
+		&CreditRuleItem{},
+		&CreditLog{},
 	)
 	if err != nil {
 		return err
@@ -128,13 +128,12 @@ func addTableComments() error {
 		`COMMENT ON COLUMN users.password IS '密码哈希值，使用 bcrypt 加密存储'`,
 		`COMMENT ON COLUMN users.display_name IS '显示名称，用于界面展示'`,
 		`COMMENT ON COLUMN users.role IS '用户角色：1=普通用户, 10=管理员, 100=root'`,
-		`COMMENT ON COLUMN users.status IS '用户状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN users.status IS '用户状态：1=启用, 2=禁用, 3=已删除'`,
 		`COMMENT ON COLUMN users.email IS '用户邮箱，用于通知和找回密码'`,
 		`COMMENT ON COLUMN users.credits IS '用户当前积分'`,
 		`COMMENT ON COLUMN users.used_credits IS '已使用积分'`,
 		`COMMENT ON COLUMN users.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN users.updated_at IS '记录最后更新时间'`,
-		`COMMENT ON COLUMN users.deleted_at IS '软删除时间戳，非空表示已删除'`,
 
 		// api_keys 表注释（原 tokens 表，已更名为 api_keys）
 		`COMMENT ON TABLE api_keys IS 'API 密钥表，存储用户 API 访问密钥'`,
@@ -167,38 +166,38 @@ func addTableComments() error {
 		`COMMENT ON COLUMN models.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN models.updated_at IS '记录最后更新时间'`,
 
-		// quota_rules 表注释
-		`COMMENT ON TABLE quota_rules IS '积分扣除规则表，存储模型的积分扣除算法'`,
-		`COMMENT ON COLUMN quota_rules.id IS '规则唯一标识，自增主键'`,
-		`COMMENT ON COLUMN quota_rules.model_id IS '关联的模型ID，关联 models 表，唯一'`,
-		`COMMENT ON COLUMN quota_rules.rule_type IS '规则类型：per_request=按次计费'`,
-		`COMMENT ON COLUMN quota_rules.base_price IS '基础积分价格（每次请求扣除的积分数量）'`,
-		`COMMENT ON COLUMN quota_rules.description IS '规则描述'`,
-		`COMMENT ON COLUMN quota_rules.status IS '规则状态：1=启用, 2=禁用'`,
-		`COMMENT ON COLUMN quota_rules.created_at IS '记录创建时间'`,
-		`COMMENT ON COLUMN quota_rules.updated_at IS '记录最后更新时间'`,
-		`COMMENT ON COLUMN quota_rules.deleted_at IS '软删除时间戳，非空表示已删除'`,
+		// credit_rules 表注释
+		`COMMENT ON TABLE credit_rules IS '积分扣除规则表，存储模型的积分扣除算法'`,
+		`COMMENT ON COLUMN credit_rules.id IS '规则唯一标识，自增主键'`,
+		`COMMENT ON COLUMN credit_rules.model_id IS '关联的模型ID，关联 models 表，唯一'`,
+		`COMMENT ON COLUMN credit_rules.rule_type IS '规则类型：per_request=按次计费'`,
+		`COMMENT ON COLUMN credit_rules.base_credits IS '基础积分（每次请求扣除的积分数量）'`,
+		`COMMENT ON COLUMN credit_rules.description IS '规则描述'`,
+		`COMMENT ON COLUMN credit_rules.status IS '规则状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN credit_rules.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN credit_rules.updated_at IS '记录最后更新时间'`,
+		`COMMENT ON COLUMN credit_rules.deleted_at IS '软删除时间戳，非空表示已删除'`,
 
-		// quota_rule_items 表注释
-		`COMMENT ON TABLE quota_rule_items IS '积分规则参数映射表，存储差异化计费的参数配置'`,
-		`COMMENT ON COLUMN quota_rule_items.id IS '项唯一标识，自增主键'`,
-		`COMMENT ON COLUMN quota_rule_items.rule_id IS '关联的规则ID，关联 quota_rules 表'`,
-		`COMMENT ON COLUMN quota_rule_items.param_path IS '请求参数路径（如 size, quality, model）'`,
-		`COMMENT ON COLUMN quota_rule_items.param_value IS '参数值（如 1024x1024, high, gpt-4）'`,
-		`COMMENT ON COLUMN quota_rule_items.price IS '该参数值对应的积分价格'`,
-		`COMMENT ON COLUMN quota_rule_items.created_at IS '记录创建时间'`,
-		`COMMENT ON COLUMN quota_rule_items.updated_at IS '记录最后更新时间'`,
+		// credit_rule_items 表注释
+		`COMMENT ON TABLE credit_rule_items IS '积分规则参数映射表，存储差异化计费的参数配置'`,
+		`COMMENT ON COLUMN credit_rule_items.id IS '项唯一标识，自增主键'`,
+		`COMMENT ON COLUMN credit_rule_items.rule_id IS '关联的规则ID，关联 credit_rules 表'`,
+		`COMMENT ON COLUMN credit_rule_items.param_path IS '请求参数路径（如 size, quality, model）'`,
+		`COMMENT ON COLUMN credit_rule_items.param_value IS '参数值（如 1024x1024, high, gpt-4）'`,
+		`COMMENT ON COLUMN credit_rule_items.credits IS '该参数值对应的积分'`,
+		`COMMENT ON COLUMN credit_rule_items.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN credit_rule_items.updated_at IS '记录最后更新时间'`,
 
-		// quota_logs 表注释
-		`COMMENT ON TABLE quota_logs IS '积分日志表，记录积分扣除和退还'`,
-		`COMMENT ON COLUMN quota_logs.id IS '日志唯一标识，自增主键'`,
-		`COMMENT ON COLUMN quota_logs.user_id IS '用户ID，关联 users 表'`,
-		`COMMENT ON COLUMN quota_logs.task_id IS '关联的任务ID'`,
-		`COMMENT ON COLUMN quota_logs.amount IS '积分数量（正数）'`,
-		`COMMENT ON COLUMN quota_logs.type IS '操作类型：deduct=扣除, refund=退还'`,
-		`COMMENT ON COLUMN quota_logs.remark IS '备注说明'`,
-		`COMMENT ON COLUMN quota_logs.created_at IS '记录创建时间'`,
-		`COMMENT ON COLUMN quota_logs.deleted_at IS '软删除时间戳'`,
+		// credit_logs 表注释
+		`COMMENT ON TABLE credit_logs IS '积分日志表，记录积分扣除和退还'`,
+		`COMMENT ON COLUMN credit_logs.id IS '日志唯一标识，自增主键'`,
+		`COMMENT ON COLUMN credit_logs.user_id IS '用户ID，关联 users 表'`,
+		`COMMENT ON COLUMN credit_logs.task_id IS '关联的任务ID'`,
+		`COMMENT ON COLUMN credit_logs.credits IS '积分数量（正数）'`,
+		`COMMENT ON COLUMN credit_logs.type IS '操作类型：deduct=扣除, refund=退还'`,
+		`COMMENT ON COLUMN credit_logs.remark IS '备注说明'`,
+		`COMMENT ON COLUMN credit_logs.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN credit_logs.deleted_at IS '软删除时间戳'`,
 	}
 
 	for _, comment := range comments {

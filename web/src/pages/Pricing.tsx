@@ -35,7 +35,7 @@ function ModelCard({
   const { copy } = useCopyToClipboard()
   const tags = parseTags(model.tags)
   const initial = model.name?.charAt(0).toUpperCase() || '?'
-  const quotaRule = model.quota_rule
+  const creditRule = model.credit_rule
 
   return (
     <div className='group relative flex flex-col overflow-hidden rounded-xl border transition-all hover:border-foreground/20 hover:shadow-lg'>
@@ -93,12 +93,12 @@ function ModelCard({
       </div>
 
       {/* 积分消耗 */}
-      {quotaRule && (
+      {creditRule && (
         <div className='px-4 pb-3 sm:px-5 sm:pb-4'>
           <div className='flex items-center justify-between'>
             <div className='flex items-baseline gap-1'>
               <span className='text-xl font-bold tracking-tight sm:text-2xl'>
-                {quotaRule.base_price.toFixed(2)}
+                {creditRule.base_credits.toFixed(2)}
               </span>
               <span className='text-muted-foreground text-xs'>积分/次</span>
             </div>
@@ -106,19 +106,19 @@ function ModelCard({
               按次计费
             </span>
           </div>
-          {quotaRule.items && quotaRule.items.length > 0 && (
+          {creditRule.items && creditRule.items.length > 0 && (
             <div className='mt-2 flex flex-wrap gap-1.5'>
-              {quotaRule.items.slice(0, 3).map((item) => (
+              {creditRule.items.slice(0, 3).map((item) => (
                 <span
                   key={item.id}
                   className='inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px]'
                 >
                   <span className='text-muted-foreground'>{item.param_value}</span>
-                  <span className='font-medium'>{item.price.toFixed(2)}</span>
+                  <span className='font-medium'>{item.credits.toFixed(2)}</span>
                 </span>
               ))}
-              {quotaRule.items.length > 3 && (
-                <span className='text-muted-foreground text-[11px]'>+{quotaRule.items.length - 3}</span>
+              {creditRule.items.length > 3 && (
+                <span className='text-muted-foreground text-[11px]'>+{creditRule.items.length - 3}</span>
               )}
             </div>
           )}

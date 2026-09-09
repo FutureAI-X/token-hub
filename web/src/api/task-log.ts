@@ -17,8 +17,8 @@ export interface TaskLog {
   id: number
   task_id: string
   status: string
-  quota_amount: number
-  quota_refunded: boolean
+  credits: number
+  credits_refunded: boolean
   query_response?: string
   created_at: string
   updated_at: string

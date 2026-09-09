@@ -8,8 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetQuotaLogs 获取当前用户的积分日志
-func GetQuotaLogs(c *gin.Context) {
+// GetCreditLogs 获取当前用户的积分日志
+func GetCreditLogs(c *gin.Context) {
 	uid, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "未登录"})
@@ -27,7 +27,7 @@ func GetQuotaLogs(c *gin.Context) {
 		pageSize = 20
 	}
 
-	logs, total, err := model.GetQuotaLogsByUserID(userID, page, pageSize)
+	logs, total, err := model.GetCreditLogsByUserID(userID, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取积分日志失败"})
 		return
@@ -36,7 +36,7 @@ func GetQuotaLogs(c *gin.Context) {
 	type logResponse struct {
 		ID        int    `json:"id"`
 		TaskID    string `json:"task_id"`
-		Amount    int64  `json:"amount"`
+		Credits   int64  `json:"credits"`
 		Type      string `json:"type"`
 		Remark    string `json:"remark"`
 		CreatedAt string `json:"created_at"`
@@ -47,7 +47,7 @@ func GetQuotaLogs(c *gin.Context) {
 		items[i] = logResponse{
 			ID:        log.ID,
 			TaskID:    log.TaskID,
-			Amount:    log.Amount,
+			Credits:   log.Credits,
 			Type:      log.Type,
 			Remark:    log.Remark,
 			CreatedAt: log.CreatedAt.Format("2006-01-02 15:04:05"),

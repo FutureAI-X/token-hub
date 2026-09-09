@@ -15,10 +15,10 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-interface QuotaLog {
+interface CreditLog {
   id: number
   task_id: string
-  amount: number
+  credits: number
   type: string
   remark: string
   created_at: string
@@ -47,8 +47,8 @@ function formatTime(timeStr?: string): string {
   }
 }
 
-export function QuotaLogs() {
-  const [logs, setLogs] = useState<QuotaLog[]>([])
+export function CreditLogs() {
+  const [logs, setLogs] = useState<CreditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -57,7 +57,7 @@ export function QuotaLogs() {
   const loadLogs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${BASE}/quota-logs?page=${page}&page_size=${pageSize}`, {
+      const res = await fetch(`${BASE}/credit-logs?page=${page}&page_size=${pageSize}`, {
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
       })
       const data = await res.json()
@@ -120,7 +120,7 @@ export function QuotaLogs() {
                     </td>
                     <td className='px-4 py-3'>
                       <span className={cn('text-sm font-medium', typeConf.className)}>
-                        {log.type === 'refund' ? '+' : '-'}{log.amount}
+                        {log.type === 'refund' ? '+' : '-'}{log.credits}
                       </span>
                     </td>
                     <td className='px-4 py-3'>

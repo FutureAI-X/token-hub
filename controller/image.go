@@ -121,15 +121,15 @@ func ImageGenerate(c *gin.Context) {
 	}
 
 	// 8. 计算积分消耗
-	quotaAmount := int64(0)
-	quotaRule, err := model.GetQuotaRuleByModelID(m.ID)
-	if err == nil && quotaRule != nil {
-		quotaAmount = int64(quotaRule.BasePrice)
+	creditsAmount := int64(0)
+	creditRule, err := model.GetCreditRuleByModelID(m.ID)
+	if err == nil && creditRule != nil {
+		creditsAmount = int64(creditRule.BaseCredits)
 		// 检查是否有参数差异化定价
-		if len(quotaRule.Items) > 0 {
-			for _, item := range quotaRule.Items {
+		if len(creditRule.Items) > 0 {
+			for _, item := range creditRule.Items {
 				if paramVal, ok := reqBody[item.ParamPath].(string); ok && paramVal == item.ParamValue {
-					quotaAmount = int64(item.Price)
+					creditsAmount = int64(item.Credits)
 					break
 				}
 			}
@@ -140,9 +140,9 @@ func ImageGenerate(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
 	// 10. 扣除积分
-	if quotaAmount > 0 && userID > 0 {
-		if err := model.DeductCredits(userID, "", quotaAmount, "图像生成任务"); err != nil {
-			common.SysErrorf("[ImageGenerate] 积分扣除失败: userID=%d, amount=%d, err=%v", userID, quotaAmount, err)
+	if creditsAmount > 0 && userID > 0 {
+		if err := model.DeductCredits(userID, "", creditsAmount, "图像生成任务"); err != nil {
+			common.SysErrorf("[ImageGenerate] 积分扣除失败: userID=%d, amount=%d, err=%v", userID, creditsAmount, err)
 			c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
 			return
 		}
@@ -157,22 +157,22 @@ func ImageGenerate(c *gin.Context) {
 		ModelID:        m.ID,
 		EndpointID:     endpoint.ID,
 		Status:         "submitted",
-		QuotaAmount:    quotaAmount,
+		Credits:        creditsAmount,
 		VendorResponse: string(vendorRespJSON),
 	}
 	if err := model.CreateTask(&task); err != nil {
 		common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
 		// 退还积分
-		if quotaAmount > 0 && userID > 0 {
-			model.RefundCredits(userID, "", quotaAmount, "任务创建失败退还")
+		if creditsAmount > 0 && userID > 0 {
+			model.RefundCredits(userID, "", creditsAmount, "任务创建失败退还")
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
 		return
 	}
 
 	// 更新积分日志的任务ID
-	if quotaAmount > 0 && userID > 0 {
-		model.UpdateQuotaLogTaskID(userID, task.TaskID)
+	if creditsAmount > 0 && userID > 0 {
+		model.UpdateCreditLogTaskID(userID, task.TaskID)
 	}
 
 	common.SysLogf("[ImageGenerate] 任务创建成功: taskId=%s, vendor=%s, model=%s", task.TaskID, vendor.Name, modelName)
