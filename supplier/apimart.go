@@ -2,10 +2,13 @@ package supplier
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 
 	"github.com/FutureAI/token-hub/common"
 )
@@ -238,4 +241,100 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// ── APIMart 图片上传 ──
+
+// apimartUploader APIMart 图片上传实现
+type apimartUploader struct {
+	cfg    Config
+	client *http.Client
+}
+
+// newAPIMartUploader 创建 APIMart 上传实例
+func newAPIMartUploader(cfg Config) *apimartUploader {
+	return &apimartUploader{
+		cfg: cfg,
+		client: &http.Client{
+			Timeout: defaultHTTPTimeout,
+		},
+	}
+}
+
+// apimartUploadResponse APIMart 上传响应体
+type apimartUploadResponse struct {
+	URL         string `json:"url"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Bytes       int64  `json:"bytes"`
+	CreatedAt   int64  `json:"created_at"`
+}
+
+// UploadImage 上传图片到 APIMart
+// APIMart 返回 HTTP 200 视为成功，其余视为失败
+func (u *apimartUploader) UploadImage(ctx context.Context, filename string, contentType string, data []byte) (*UploadResult, error) {
+	url := fmt.Sprintf("%s/v1/uploads/images", u.cfg.BaseURL)
+
+	// 构造 multipart/form-data
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+	header.Set("Content-Type", contentType)
+	part, err := writer.CreatePart(header)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := part.Write(data); err != nil {
+		return nil, err
+	}
+	writer.Close()
+
+	common.SysLogf("[APIMart] 上传图片: POST %s, type=%s, size=%d", url, contentType, len(data))
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, &buf)
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", u.cfg.APIKey))
+
+	resp, err := u.client.Do(httpReq)
+	if err != nil {
+		common.SysErrorf("[APIMart] 上传请求发送失败: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		common.SysErrorf("[APIMart] 读取上传响应失败: %v", err)
+		return nil, err
+	}
+
+	// HTTP 非 200 视为失败
+	if resp.StatusCode != http.StatusOK {
+		common.SysErrorf("[APIMart] 上传 HTTP 状态异常: %d, 响应: %s", resp.StatusCode, truncate(string(respBody), 300))
+		return nil, fmt.Errorf("upload failed: HTTP %d", resp.StatusCode)
+	}
+
+	var apiResp apimartUploadResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		common.SysErrorf("[APIMart] 上传响应解析失败: %v, 响应: %s", err, truncate(string(respBody), 300))
+		return nil, err
+	}
+
+	if apiResp.URL == "" {
+		common.SysErrorf("[APIMart] 上传响应缺少 url: %s", truncate(string(respBody), 300))
+		return nil, fmt.Errorf("upload response missing url")
+	}
+
+	common.SysLogf("[APIMart] 上传成功: %s", apiResp.URL)
+
+	return &UploadResult{
+		URL:         apiResp.URL,
+		Filename:    apiResp.Filename,
+		ContentType: apiResp.ContentType,
+		Bytes:       apiResp.Bytes,
+	}, nil
 }

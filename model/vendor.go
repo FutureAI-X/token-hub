@@ -90,6 +90,16 @@ func GetVendorByID(id int) (*Vendor, error) {
 	return &vendor, nil
 }
 
+// GetEnabledVendorByNameInsensitive 根据名称获取启用的供应商（名称忽略大小写）
+func GetEnabledVendorByNameInsensitive(name string) (*Vendor, error) {
+	var vendor Vendor
+	err := DB.Where("LOWER(name) = LOWER(?) AND status = ?", name, VendorStatusEnabled).First(&vendor).Error
+	if err != nil {
+		return nil, err
+	}
+	return &vendor, nil
+}
+
 // CreateVendor 创建供应商
 func CreateVendor(vendor *Vendor) error {
 	return DB.Create(vendor).Error

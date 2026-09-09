@@ -55,6 +55,9 @@ func SetRouter(server *gin.Engine) {
 		// 图像生成
 		apiRouter.POST("/images/generations", controller.ImageGenerate)
 
+		// 图片上传
+		apiRouter.POST("/uploads/images", controller.UploadImage)
+
 		// 任务查询
 		apiRouter.GET("/tasks/:task_id", controller.GetTask)
 	}
