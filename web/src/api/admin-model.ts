@@ -70,7 +70,6 @@ export interface ModelEndpoint {
   id: number
   model_id: number
   endpoint_id: number
-  priority: number
   endpoint_path: string
   endpoint_name: string
 }

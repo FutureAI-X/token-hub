@@ -136,19 +136,16 @@ func addTableComments() error {
 		`COMMENT ON COLUMN users.updated_at IS '记录最后更新时间'`,
 		`COMMENT ON COLUMN users.deleted_at IS '软删除时间戳，非空表示已删除'`,
 
-		// tokens 表注释
-		`COMMENT ON TABLE tokens IS 'API Token 表，存储用户 API 访问令牌'`,
-		`COMMENT ON COLUMN tokens.id IS 'Token 唯一标识，自增主键'`,
-		`COMMENT ON COLUMN tokens.user_id IS '所属用户ID，关联 users 表'`,
-		`COMMENT ON COLUMN tokens.key IS 'Token 密钥，用于 API 认证'`,
-		`COMMENT ON COLUMN tokens.name IS 'Token 名称，便于用户识别'`,
-		`COMMENT ON COLUMN tokens.status IS 'Token 状态：1=启用, 2=禁用'`,
-		`COMMENT ON COLUMN tokens.expired_time IS '过期时间戳，-1 表示永不过期'`,
-		`COMMENT ON COLUMN tokens.remain_quota IS '剩余配额，-1 表示无限制'`,
-		`COMMENT ON COLUMN tokens.used_quota IS '已使用配额'`,
-		`COMMENT ON COLUMN tokens.created_at IS '记录创建时间'`,
-		`COMMENT ON COLUMN tokens.updated_at IS '记录最后更新时间'`,
-		`COMMENT ON COLUMN tokens.deleted_at IS '软删除时间戳'`,
+		// api_keys 表注释（原 tokens 表，已更名为 api_keys）
+		`COMMENT ON TABLE api_keys IS 'API 密钥表，存储用户 API 访问密钥'`,
+		`COMMENT ON COLUMN api_keys.id IS '密钥唯一标识，自增主键'`,
+		`COMMENT ON COLUMN api_keys.user_id IS '所属用户ID，关联 users 表'`,
+		`COMMENT ON COLUMN api_keys.key IS '密钥，用于 API 认证'`,
+		`COMMENT ON COLUMN api_keys.name IS '密钥名称，便于用户识别'`,
+		`COMMENT ON COLUMN api_keys.status IS '密钥状态：1=启用, 2=禁用, 3=已删除'`,
+		`COMMENT ON COLUMN api_keys.expired_time IS '过期时间戳，-1 表示永不过期'`,
+		`COMMENT ON COLUMN api_keys.created_at IS '记录创建时间'`,
+		`COMMENT ON COLUMN api_keys.updated_at IS '记录最后更新时间'`,
 
 		// vendors 表注释
 		`COMMENT ON TABLE vendors IS '供应商表，存储 AI 模型供应商信息'`,
@@ -171,7 +168,6 @@ func addTableComments() error {
 		`COMMENT ON COLUMN models.status IS '模型状态：1=启用, 2=禁用'`,
 		`COMMENT ON COLUMN models.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN models.updated_at IS '记录最后更新时间'`,
-		`COMMENT ON COLUMN models.deleted_at IS '软删除时间戳'`,
 
 		// quota_rules 表注释
 		`COMMENT ON TABLE quota_rules IS '积分扣除规则表，存储模型的积分扣除算法'`,

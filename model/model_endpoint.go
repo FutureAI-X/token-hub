@@ -2,19 +2,15 @@ package model
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // ModelEndpoint 模型端点关联
 type ModelEndpoint struct {
-	ID         int        `json:"id" gorm:"primaryKey"`
-	ModelID    int        `json:"model_id" gorm:"index;not null"`
-	EndpointID int        `json:"endpoint_id" gorm:"index;not null"`
-	Priority   int        `json:"priority" gorm:"default:0"` // 优先级，数值越小越优先
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`
+	ID         int       `json:"id" gorm:"primaryKey"`
+	ModelID    int       `json:"model_id" gorm:"index;not null"`
+	EndpointID int       `json:"endpoint_id" gorm:"index;not null"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 
 	// 非数据库字段
 	EndpointPath string `json:"endpoint_path,omitempty" gorm:"-"`
@@ -24,7 +20,7 @@ type ModelEndpoint struct {
 // GetModelEndpoints 获取模型的端点关联列表
 func GetModelEndpoints(modelID int) ([]ModelEndpoint, error) {
 	var items []ModelEndpoint
-	err := DB.Where("model_id = ?", modelID).Order("priority ASC, id ASC").Find(&items).Error
+	err := DB.Where("model_id = ?", modelID).Order("id ASC").Find(&items).Error
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +55,10 @@ func SyncModelEndpoints(modelID int, endpointIDs []int) error {
 		return err
 	}
 
-	for i, eid := range endpointIDs {
+	for _, eid := range endpointIDs {
 		me := ModelEndpoint{
 			ModelID:    modelID,
 			EndpointID: eid,
-			Priority:   i,
 		}
 		if err := DB.Create(&me).Error; err != nil {
 			return err

@@ -84,7 +84,6 @@ func CreateToken(c *gin.Context) {
 		Key:         key,
 		Status:      1,
 		ExpiredTime: -1,
-		RemainQuota: -1,
 	}
 
 	if err := model.CreateToken(&token); err != nil {

@@ -2,28 +2,26 @@ package model
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // Model 模型信息
 type Model struct {
-	// 模型唯一标识，自增主键
+	// 唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
-	// 模型名称，全局唯一，用于 API 调用
-	Name string `json:"name" gorm:"uniqueIndex;size:64;not null"`
-
-	// 模型描述
-	Description string `json:"description,omitempty" gorm:"type:text"`
-
-	// 模型标签，逗号分隔
-	Tags string `json:"tags,omitempty" gorm:"size:255"`
-
-	// 模型所有者/提供商名称（兼容旧数据）
+	// 开发者/提供商名称（兼容旧数据）
 	Owner string `json:"owner" gorm:"size:64;default:token-hub"`
 
-	// 模型状态：1=启用, 2=禁用
+	// 名称，全局唯一，用于 API 调用
+	Name string `json:"name" gorm:"uniqueIndex;size:64;not null"`
+
+	// 标签，逗号分隔
+	Tags string `json:"tags,omitempty" gorm:"size:255"`
+
+	// 描述
+	Description string `json:"description,omitempty" gorm:"type:text"`
+
+	// 状态：1=启用, 2=禁用
 	Status int `json:"status" gorm:"default:1"`
 
 	// 记录创建时间
@@ -31,9 +29,6 @@ type Model struct {
 
 	// 记录最后更新时间
 	UpdatedAt time.Time `json:"updated_at"`
-
-	// 软删除时间戳
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 // GetModels 获取所有可用模型
@@ -125,7 +120,7 @@ func UpdateModelStatus(id int, status int) error {
 	return DB.Model(&Model{}).Where("id = ?", id).Update("status", status).Error
 }
 
-// DeleteModel 删除模型（软删除）
+// DeleteModel 删除模型（硬删除，直接从表中删除）
 func DeleteModel(id int) error {
 	return DB.Delete(&Model{}, id).Error
 }

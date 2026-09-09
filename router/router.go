@@ -45,8 +45,9 @@ func SetRouter(server *gin.Engine) {
 		userRouter.GET("/task-logs/:id", controller.GetUserTaskLogDetail)
 	}
 
-	// API 路由组
+	// API 路由组（校验 API Key）
 	apiRouter := server.Group("/v1")
+	apiRouter.Use(middleware.APIAuth())
 	{
 		// 模型列表接口
 		apiRouter.GET("/models", controller.ListModels)

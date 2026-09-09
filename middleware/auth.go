@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
@@ -123,6 +124,50 @@ func RootAuth() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// APIAuth API Key 认证中间件
+// 校验 /v1 接口的 Authorization: Bearer <token>
+// <token> 对应 api_keys 表中的 key 字段（即 API Key）
+func APIAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := extractToken(c)
+		if key == "" {
+			abortAPIAuth(c, "未提供 API Key", "authentication_error")
+			return
+		}
+
+		// 根据 Key 获取 Token（GetTokenByKey 已过滤 status=1 启用状态）
+		token, err := model.GetTokenByKey(key)
+		if err != nil {
+			abortAPIAuth(c, "无效的 API Key", "authentication_error")
+			return
+		}
+
+		// 检查是否过期（-1 表示永不过期）
+		if token.ExpiredTime != -1 && token.ExpiredTime < time.Now().Unix() {
+			abortAPIAuth(c, "API Key 已过期", "authentication_error")
+			return
+		}
+
+		// 将身份信息存入上下文供后续处理使用
+		c.Set("user_id", token.UserID)
+		c.Set("token_id", token.ID)
+		c.Set("api_key", token.Key)
+
+		c.Next()
+	}
+}
+
+// abortAPIAuth 以 OpenAI 兼容格式终止 API 请求
+func abortAPIAuth(c *gin.Context, message, errorType string) {
+	c.JSON(http.StatusUnauthorized, gin.H{
+		"error": gin.H{
+			"message": message,
+			"type":    errorType,
+		},
+	})
+	c.Abort()
 }
 
 // extractToken 从请求中提取 Token

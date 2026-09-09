@@ -72,53 +72,56 @@ type User struct {
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
-// Token API Token 模型
+// Token API Token 模型（对应 api_keys 表，存储用户 API 访问密钥）
 type Token struct {
-	// Token 唯一标识，自增主键
+	// 唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
 	// 所属用户ID，关联 users 表
 	UserID int `json:"user_id" gorm:"index"`
 
-	// Token 密钥，用于 API 认证，全局唯一
-	Key string `json:"key" gorm:"uniqueIndex;size:64;not null"`
-
-	// Token 名称，便于用户识别
+	// 密钥名称，便于用户识别
 	Name string `json:"name" gorm:"size:64"`
 
-	// Token 状态：1=启用, 2=禁用
+	// 密钥，用于 API 认证，全局唯一
+	Key string `json:"key" gorm:"uniqueIndex;size:64;not null"`
+
+	// 状态：1=启用, 2=禁用, 3=已删除
 	Status int `json:"status" gorm:"default:1"`
 
 	// 过期时间戳，-1 表示永不过期
 	ExpiredTime int64 `json:"expired_time" gorm:"default:-1"`
-
-	// 剩余配额，-1 表示无限制
-	RemainQuota int64 `json:"remain_quota" gorm:"default:-1"`
-
-	// 已使用配额
-	UsedQuota int64 `json:"used_quota" gorm:"default:0"`
 
 	// 记录创建时间
 	CreatedAt time.Time `json:"created_at"`
 
 	// 记录最后更新时间
 	UpdatedAt time.Time `json:"updated_at"`
-
-	// 软删除时间戳
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
-// GetTokensByUserID 获取用户的 Token 列表
+// Token 状态常量
+const (
+	TokenStatusEnabled  = 1 // 启用
+	TokenStatusDisabled = 2 // 禁用
+	TokenStatusDeleted  = 3 // 已删除
+)
+
+// TableName 指定表名（原为 tokens，已更名为 api_keys）
+func (Token) TableName() string {
+	return "api_keys"
+}
+
+// GetTokensByUserID 获取用户的 Token 列表（排除已删除）
 func GetTokensByUserID(userID int) ([]Token, error) {
 	var tokens []Token
-	err := DB.Where("user_id = ?", userID).Order("id ASC").Find(&tokens).Error
+	err := DB.Where("user_id = ? AND status != ?", userID, TokenStatusDeleted).Order("id ASC").Find(&tokens).Error
 	return tokens, err
 }
 
-// GetTokenByID 根据 ID 获取 Token
+// GetTokenByID 根据 ID 获取 Token（排除已删除）
 func GetTokenByID(id int) (*Token, error) {
 	var token Token
-	err := DB.Where("id = ?", id).First(&token).Error
+	err := DB.Where("id = ? AND status != ?", id, TokenStatusDeleted).First(&token).Error
 	if err != nil {
 		return nil, err
 	}
@@ -145,15 +148,15 @@ func UpdateTokenName(id int, name string) error {
 	return DB.Model(&Token{}).Where("id = ?", id).Update("name", name).Error
 }
 
-// DeleteToken 删除 Token（软删除）
+// DeleteToken 删除 Token（置为已删除状态，非物理删除）
 func DeleteToken(id int) error {
-	return DB.Delete(&Token{}, id).Error
+	return DB.Model(&Token{}).Where("id = ?", id).Update("status", TokenStatusDeleted).Error
 }
 
-// IsTokenKeyExists 检查 Token Key 是否已存在
+// IsTokenKeyExists 检查 Token Key 是否已存在（排除已删除）
 func IsTokenKeyExists(key string) bool {
 	var count int64
-	DB.Model(&Token{}).Where("key = ?", key).Count(&count)
+	DB.Model(&Token{}).Where("key = ? AND status != ?", key, TokenStatusDeleted).Count(&count)
 	return count > 0
 }
 

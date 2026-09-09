@@ -136,19 +136,8 @@ func ImageGenerate(c *gin.Context) {
 		}
 	}
 
-	// 9. 获取当前用户ID
-	userID := c.GetInt("userID")
-	if userID == 0 {
-		// 从 Token 获取用户ID
-		tokenKey := c.GetHeader("Authorization")
-		if tokenKey != "" {
-			tokenKey = tokenKey[7:] // 移除 "Bearer " 前缀
-			token, err := model.GetTokenByKey(tokenKey)
-			if err == nil {
-				userID = token.UserID
-			}
-		}
-	}
+	// 9. 获取当前用户ID（由 APIAuth 中间件从 API Key 解析）
+	userID := c.GetInt("user_id")
 
 	// 10. 扣除积分
 	if quotaAmount > 0 && userID > 0 {
