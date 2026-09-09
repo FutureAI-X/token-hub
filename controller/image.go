@@ -205,6 +205,13 @@ func GetTask(c *gin.Context) {
 		return
 	}
 
+	// 校验任务归属：仅允许查询本人的任务
+	userID := c.GetInt("user_id")
+	if userID > 0 && task.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"taskId": taskID, "status": "fail", "message": "无权查看此任务"})
+		return
+	}
+
 	// 解析 query_response 作为 data
 	var data map[string]interface{}
 	if task.QueryResponse != "" {
