@@ -33,6 +33,7 @@ export function AdminEndpoints() {
   const [editRow, setEditRow] = useState<Endpoint | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteRow, setDeleteRow] = useState<Endpoint | null>(null)
+  const [deleteError, setDeleteError] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
 
   const [formPath, setFormPath] = useState('')
@@ -95,8 +96,12 @@ export function AdminEndpoints() {
   const handleDeleteConfirm = async () => {
     if (!deleteRow) return
     setActionLoading(true)
-    try { await deleteEndpoint(deleteRow.id); setDeleteOpen(false); setDeleteRow(null); loadEndpoints() }
-    catch { /* ignore */ }
+    setDeleteError('')
+    try {
+      const res = await deleteEndpoint(deleteRow.id)
+      if (!res.success) { setDeleteError(res.message || '删除失败'); return }
+      setDeleteOpen(false); setDeleteRow(null); loadEndpoints()
+    } catch { setDeleteError('网络错误') }
     finally { setActionLoading(false) }
   }
 
@@ -176,7 +181,7 @@ export function AdminEndpoints() {
                             ep.status === 1 ? 'hover:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400')}>
                           {ep.status === 1 ? <><PowerOff className='size-3.5' /> 禁用</> : <><Power className='size-3.5' /> 启用</>}
                         </button>
-                        <button onClick={() => { setDeleteRow(ep); setDeleteOpen(true) }}
+                        <button onClick={() => { setDeleteRow(ep); setDeleteError(''); setDeleteOpen(true) }}
                           className='text-destructive hover:bg-destructive/10 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Trash2 className='size-3.5' /> 删除
                         </button>
@@ -231,7 +236,10 @@ export function AdminEndpoints() {
       )}
 
       <ConfirmDialog open={deleteOpen} onOpenChange={setDeleteOpen} title='确认删除'
-        description={<>确定要删除端点 <span className='text-foreground font-semibold'>{deleteRow?.name}</span> 吗？</>}
+        description={<>
+          确定要删除端点 <span className='text-foreground font-semibold'>{deleteRow?.name}</span> 吗？
+          {deleteError && <span className='text-destructive mt-2 block text-sm'>{deleteError}</span>}
+        </>}
         confirmText='删除' destructive loading={actionLoading} onConfirm={handleDeleteConfirm} />
     </div>
   )

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -131,6 +132,11 @@ func AdminDeleteEndpoint(c *gin.Context) {
 	}
 
 	if err := model.DeleteEndpoint(id); err != nil {
+		// 仍被模型引用时返回 409 及具体提示
+		if errors.Is(err, model.ErrEndpointInUse) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "message": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "删除失败"})
 		return
 	}
