@@ -40,9 +40,6 @@ type CreditRule struct {
 	// 记录最后更新时间
 	UpdatedAt time.Time `json:"updated_at"`
 
-	// 软删除时间戳
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
-
 	// 关联的参数积分映射
 	Items []CreditRuleItem `json:"items,omitempty" gorm:"foreignKey:RuleID"`
 }
@@ -111,7 +108,7 @@ func UpdateCreditRule(id int, updates map[string]interface{}) error {
 	return DB.Model(&CreditRule{}).Where("id = ?", id).Updates(updates).Error
 }
 
-// DeleteCreditRule 删除积分规则（软删除，会级联删除参数映射）
+// DeleteCreditRule 删除积分规则（硬删除，会级联删除参数映射）
 func DeleteCreditRule(id int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 先删除参数映射
@@ -123,7 +120,7 @@ func DeleteCreditRule(id int) error {
 	})
 }
 
-// DeleteCreditRuleByModelID 删除指定模型的积分规则
+// DeleteCreditRuleByModelID 删除指定模型的积分规则（硬删除，会级联删除参数映射）
 func DeleteCreditRuleByModelID(modelID int) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 先获取规则 ID

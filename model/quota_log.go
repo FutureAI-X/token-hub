@@ -17,11 +17,10 @@ type CreditLog struct {
 	ID        int       `json:"id" gorm:"primaryKey"`
 	UserID    int       `json:"user_id" gorm:"index;not null"`
 	TaskID    string    `json:"task_id" gorm:"index;size:64"`
-	Credits   int64     `json:"credits" gorm:"not null"`        // 积分数量（正数）
-	Type      string    `json:"type" gorm:"size:32;not null"`   // deduct=扣除, refund=退还
-	Remark    string    `json:"remark" gorm:"size:255"`         // 备注
+	Credits   int64     `json:"credits" gorm:"not null"`      // 积分数量（正数）
+	Type      string    `json:"type" gorm:"size:32;not null"` // deduct=扣除, refund=退还
+	Remark    string    `json:"remark" gorm:"size:255"`       // 备注
 	CreatedAt time.Time `json:"created_at"`
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
 
 // TableName 指定表名（原为 quota_logs）

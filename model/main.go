@@ -176,7 +176,6 @@ func addTableComments() error {
 		`COMMENT ON COLUMN credit_rules.status IS '规则状态：1=启用, 2=禁用'`,
 		`COMMENT ON COLUMN credit_rules.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN credit_rules.updated_at IS '记录最后更新时间'`,
-		`COMMENT ON COLUMN credit_rules.deleted_at IS '软删除时间戳，非空表示已删除'`,
 
 		// credit_rule_items 表注释
 		`COMMENT ON TABLE credit_rule_items IS '积分规则参数映射表，存储差异化计费的参数配置'`,
@@ -197,7 +196,6 @@ func addTableComments() error {
 		`COMMENT ON COLUMN credit_logs.type IS '操作类型：deduct=扣除, refund=退还'`,
 		`COMMENT ON COLUMN credit_logs.remark IS '备注说明'`,
 		`COMMENT ON COLUMN credit_logs.created_at IS '记录创建时间'`,
-		`COMMENT ON COLUMN credit_logs.deleted_at IS '软删除时间戳'`,
 	}
 
 	for _, comment := range comments {
