@@ -150,13 +150,11 @@ func addTableComments() error {
 		// vendors 表注释
 		`COMMENT ON TABLE vendors IS '供应商表，存储 AI 模型供应商信息'`,
 		`COMMENT ON COLUMN vendors.id IS '供应商唯一标识，自增主键'`,
-		`COMMENT ON COLUMN vendors.name IS '供应商名称，全局唯一'`,
+		`COMMENT ON COLUMN vendors.name IS '供应商名称'`,
 		`COMMENT ON COLUMN vendors.description IS '供应商描述'`,
-		`COMMENT ON COLUMN vendors.icon IS '供应商图标标识'`,
-		`COMMENT ON COLUMN vendors.status IS '供应商状态：1=启用, 2=禁用'`,
+		`COMMENT ON COLUMN vendors.status IS '供应商状态：1=启用, 2=禁用, 3=已删除'`,
 		`COMMENT ON COLUMN vendors.created_at IS '记录创建时间'`,
 		`COMMENT ON COLUMN vendors.updated_at IS '记录最后更新时间'`,
-		`COMMENT ON COLUMN vendors.deleted_at IS '软删除时间戳'`,
 
 		// models 表注释
 		`COMMENT ON TABLE models IS '模型表，存储可用的 AI 模型信息'`,

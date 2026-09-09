@@ -13,7 +13,6 @@ import {
   saveQuotaRule,
   deleteModelQuotaRule,
   type QuotaRule,
-  type QuotaRuleItem,
 } from '../../api/admin-model'
 import { ConfirmDialog } from './ConfirmDialog'
 

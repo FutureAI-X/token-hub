@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Search, Copy, ChevronRight, LayoutGrid, List } from 'lucide-react'
+import { Search, Copy, LayoutGrid, List } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { Header } from '../components/Header'
 import { PricingSidebar } from '../components/PricingSidebar'
@@ -29,10 +29,8 @@ function useCopyToClipboard() {
 // ── 模型卡片 ──
 function ModelCard({
   model,
-  onClick,
 }: {
   model: PricingModel
-  onClick: () => void
 }) {
   const { copy } = useCopyToClipboard()
   const tags = parseTags(model.tags)
@@ -182,16 +180,6 @@ export function Pricing() {
 
     return models
   }, [data?.models, search, tagFilter])
-
-  // 可用标签列表
-  const allTags = useMemo(() => {
-    if (!data?.models) return []
-    const tags = new Set<string>()
-    data.models.forEach((m) => {
-      parseTags(m.tags).forEach((t) => tags.add(t))
-    })
-    return Array.from(tags).sort()
-  }, [data?.models])
 
   // 清除所有筛选
   const clearFilters = useCallback(() => {
@@ -373,7 +361,6 @@ export function Pricing() {
                     <ModelCard
                       key={model.id}
                       model={model}
-                      onClick={() => {}}
                     />
                   ))}
                 </div>

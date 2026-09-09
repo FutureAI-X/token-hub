@@ -6,13 +6,12 @@ import {
   Power,
   PowerOff,
   Loader2,
-  Radio,
   X,
   Eye,
   EyeOff,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
-import { encryptWithKey, decryptWithKey } from '../../lib/crypto'
+import { encryptWithKey } from '../../lib/crypto'
 import {
   getVendors,
   createVendor,
@@ -22,16 +21,6 @@ import {
   type Vendor,
 } from '../../api/vendor'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
-
-const PROTOCOL_OPTIONS = [
-  { value: 'openai-chat', label: 'OpenAI Chat Completions' },
-  { value: 'openai-responses', label: 'OpenAI Responses' },
-  { value: 'anthropic-messages', label: 'Anthropic Messages' },
-]
-
-function protocolLabel(type: string): string {
-  return PROTOCOL_OPTIONS.find((p) => p.value === type)?.label || type
-}
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
@@ -54,7 +43,6 @@ export function AdminVendors() {
   const [formDesc, setFormDesc] = useState('')
   const [formBaseURL, setFormBaseURL] = useState('')
   const [formAPIKey, setFormAPIKey] = useState('')
-  const [formProtocol, setFormProtocol] = useState('openai-chat')
   const [showKey, setShowKey] = useState(false)
   const [formError, setFormError] = useState('')
   const [formSaving, setFormSaving] = useState(false)
@@ -77,7 +65,6 @@ export function AdminVendors() {
     setFormDesc('')
     setFormBaseURL('')
     setFormAPIKey('')
-    setFormProtocol('openai-chat')
     setShowKey(false)
     setFormError('')
     setDrawerOpen(true)
@@ -90,7 +77,6 @@ export function AdminVendors() {
     setFormDesc(v.description)
     setFormBaseURL(v.base_url)
     setFormAPIKey(v.api_key)
-    setFormProtocol(v.protocol_type)
     setShowKey(false)
     setFormError('')
     setDrawerOpen(true)
@@ -117,7 +103,6 @@ export function AdminVendors() {
           data.api_key = await encryptWithKey(formAPIKey, dataKey)
           data.data_key = dataKey
         }
-        if (formProtocol !== editRow.protocol_type) data.protocol_type = formProtocol
         const res = await updateVendor(editRow.id, data)
         if (!res.success) { setFormError(res.message || '更新失败'); return }
       } else {
@@ -126,7 +111,6 @@ export function AdminVendors() {
           description: formDesc,
           base_url: formBaseURL,
           api_key: await encryptWithKey(formAPIKey, dataKey),
-          protocol_type: formProtocol,
           data_key: dataKey,
         })
         if (!res.success) { setFormError(res.message || '创建失败'); return }
@@ -210,7 +194,6 @@ export function AdminVendors() {
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>供应商名称</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>API Base URL</th>
-                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>协议类型</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>创建时间</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>操作</th>
@@ -219,13 +202,13 @@ export function AdminVendors() {
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className='px-4 py-12 text-center'>
+                  <td colSpan={6} className='px-4 py-12 text-center'>
                     <Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' />
                   </td>
                 </tr>
               ) : vendors.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className='px-4 py-12 text-center'>
+                  <td colSpan={6} className='px-4 py-12 text-center'>
                     <p className='text-muted-foreground text-sm'>暂无供应商</p>
                   </td>
                 </tr>
@@ -246,12 +229,6 @@ export function AdminVendors() {
                     </td>
                     <td className='px-4 py-3'>
                       <code className='text-muted-foreground font-mono text-xs break-all'>{v.base_url}</code>
-                    </td>
-                    <td className='px-4 py-3'>
-                      <span className='bg-muted inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium'>
-                        <Radio className='size-3' />
-                        {protocolLabel(v.protocol_type)}
-                      </span>
                     </td>
                     <td className='px-4 py-3'>
                       <span className={cn('inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium', statusConf.className)}>
@@ -306,7 +283,7 @@ export function AdminVendors() {
               </button>
             </div>
 
-            <div className='p-6 space-y-4' autoComplete='off'>
+            <div className='p-6 space-y-4'>
               {formError && (
                 <div className='bg-destructive/10 text-destructive rounded-lg px-4 py-3 text-sm'>{formError}</div>
               )}
@@ -348,16 +325,6 @@ export function AdminVendors() {
                     {showKey ? <EyeOff className='size-4' /> : <Eye className='size-4' />}
                   </button>
                 </div>
-              </div>
-
-              <div className='space-y-2'>
-                <label className='text-sm font-medium'>协议类型</label>
-                <select value={formProtocol} onChange={(e) => setFormProtocol(e.target.value)}
-                  className='border-border/60 bg-background focus-visible:ring-ring flex h-9 w-full rounded-lg border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none'>
-                  {PROTOCOL_OPTIONS.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
               </div>
             </div>
 

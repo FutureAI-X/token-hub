@@ -18,14 +18,13 @@ func AdminGetVendors(c *gin.Context) {
 	}
 
 	type vendorResponse struct {
-		ID           int    `json:"id"`
-		Name         string `json:"name"`
-		Description  string `json:"description"`
-		BaseURL      string `json:"base_url"`
-		APIKey       string `json:"api_key"`
-		ProtocolType string `json:"protocol_type"`
-		Status       int    `json:"status"`
-		CreatedAt    string `json:"created_at"`
+		ID          int    `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		BaseURL     string `json:"base_url"`
+		APIKey      string `json:"api_key"`
+		Status      int    `json:"status"`
+		CreatedAt   string `json:"created_at"`
 	}
 
 	items := make([]vendorResponse, len(vendors))
@@ -37,14 +36,13 @@ func AdminGetVendors(c *gin.Context) {
 			}
 		}
 		items[i] = vendorResponse{
-			ID:           v.ID,
-			Name:         v.Name,
-			Description:  v.Description,
-			BaseURL:      v.BaseURL,
-			APIKey:       apiKey,
-			ProtocolType: v.ProtocolType,
-			Status:       v.Status,
-			CreatedAt:    v.CreatedAt.Format("2006-01-02 15:04:05"),
+			ID:          v.ID,
+			Name:        v.Name,
+			Description: v.Description,
+			BaseURL:     v.BaseURL,
+			APIKey:      apiKey,
+			Status:      v.Status,
+			CreatedAt:   v.CreatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
@@ -56,12 +54,11 @@ func AdminGetVendors(c *gin.Context) {
 
 // AdminCreateVendorRequest 创建供应商请求
 type AdminCreateVendorRequest struct {
-	Name         string `json:"name" binding:"required"`
-	Description  string `json:"description"`
-	BaseURL      string `json:"base_url" binding:"required"`
-	APIKey       string `json:"api_key" binding:"required"`
-	ProtocolType string `json:"protocol_type" binding:"required"`
-	DataKey      string `json:"data_key" binding:"required"`
+	Name        string `json:"name" binding:"required"`
+	Description string `json:"description"`
+	BaseURL     string `json:"base_url" binding:"required"`
+	APIKey      string `json:"api_key" binding:"required"`
+	DataKey     string `json:"data_key" binding:"required"`
 }
 
 // AdminCreateVendor 创建供应商
@@ -69,11 +66,6 @@ func AdminCreateVendor(c *gin.Context) {
 	var req AdminCreateVendorRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "请填写完整信息"})
-		return
-	}
-
-	if req.ProtocolType != "openai-chat" && req.ProtocolType != "openai-responses" && req.ProtocolType != "anthropic-messages" {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "协议类型无效"})
 		return
 	}
 
@@ -92,12 +84,11 @@ func AdminCreateVendor(c *gin.Context) {
 	}
 
 	vendor := model.Vendor{
-		Name:         req.Name,
-		Description:  req.Description,
-		BaseURL:      req.BaseURL,
-		APIKey:       encryptedKey,
-		ProtocolType: req.ProtocolType,
-		Status:       model.UserStatusEnabled,
+		Name:        req.Name,
+		Description: req.Description,
+		BaseURL:     req.BaseURL,
+		APIKey:      encryptedKey,
+		Status:      model.VendorStatusEnabled,
 	}
 
 	if err := model.CreateVendor(&vendor); err != nil {
@@ -110,12 +101,11 @@ func AdminCreateVendor(c *gin.Context) {
 
 // AdminUpdateVendorRequest 更新供应商请求
 type AdminUpdateVendorRequest struct {
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	BaseURL      string `json:"base_url"`
-	APIKey       string `json:"api_key"`
-	ProtocolType string `json:"protocol_type"`
-	DataKey      string `json:"data_key"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	BaseURL     string `json:"base_url"`
+	APIKey      string `json:"api_key"`
+	DataKey     string `json:"data_key"`
 }
 
 // AdminUpdateVendor 更新供应商
@@ -158,13 +148,6 @@ func AdminUpdateVendor(c *gin.Context) {
 			return
 		}
 		updates["api_key"] = encryptedKey
-	}
-	if req.ProtocolType != "" {
-		if req.ProtocolType != "openai-chat" && req.ProtocolType != "openai-responses" && req.ProtocolType != "anthropic-messages" {
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "协议类型无效"})
-			return
-		}
-		updates["protocol_type"] = req.ProtocolType
 	}
 
 	if len(updates) == 0 {

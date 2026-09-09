@@ -19,7 +19,6 @@ export interface Vendor {
   description: string
   base_url: string
   api_key: string
-  protocol_type: string
   status: number
   created_at: string
 }
@@ -33,7 +32,6 @@ export function createVendor(data: {
   description?: string
   base_url: string
   api_key: string
-  protocol_type: string
   data_key: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/vendors`, {
@@ -47,7 +45,6 @@ export function updateVendor(id: number, data: {
   description?: string
   base_url?: string
   api_key?: string
-  protocol_type?: string
   data_key?: string
 }) {
   return request<{ success: boolean; message: string }>(`${BASE}/vendors/${id}`, {

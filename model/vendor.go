@@ -2,23 +2,18 @@ package model
 
 import (
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // Vendor 供应商信息
 type Vendor struct {
-	// 供应商唯一标识，自增主键
+	// 唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
-	// 供应商名称
+	// 名称
 	Name string `json:"name" gorm:"size:128;not null"`
 
-	// 供应商描述
+	// 描述
 	Description string `json:"description,omitempty" gorm:"type:text"`
-
-	// 供应商图标标识
-	Icon string `json:"icon,omitempty" gorm:"size:128"`
 
 	// API 基础地址
 	BaseURL string `json:"base_url" gorm:"size:512"`
@@ -26,10 +21,7 @@ type Vendor struct {
 	// API 密钥
 	APIKey string `json:"api_key" gorm:"size:512"`
 
-	// 协议类型：openai-chat, openai-responses, anthropic-messages
-	ProtocolType string `json:"protocol_type" gorm:"size:64;default:'openai-chat'"`
-
-	// 供应商状态：1=启用, 2=禁用
+	// 状态：1=启用, 2=禁用, 3=已删除
 	Status int `json:"status" gorm:"default:1"`
 
 	// 记录创建时间
@@ -37,10 +29,14 @@ type Vendor struct {
 
 	// 记录最后更新时间
 	UpdatedAt time.Time `json:"updated_at"`
-
-	// 软删除时间戳
-	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 }
+
+// Vendor 状态常量
+const (
+	VendorStatusEnabled  = 1 // 启用
+	VendorStatusDisabled = 2 // 禁用
+	VendorStatusDeleted  = 3 // 已删除
+)
 
 // GetVendors 获取所有启用的供应商
 func GetVendors() ([]Vendor, error) {
@@ -77,17 +73,17 @@ func GetVendorMapByID() (map[int]Vendor, error) {
 	return m, nil
 }
 
-// AdminGetVendors 管理员获取全部供应商（含禁用）
+// AdminGetVendors 管理员获取全部供应商（不含已删除）
 func AdminGetVendors() ([]Vendor, error) {
 	var vendors []Vendor
-	err := DB.Order("id ASC").Find(&vendors).Error
+	err := DB.Where("status != ?", VendorStatusDeleted).Order("id ASC").Find(&vendors).Error
 	return vendors, err
 }
 
-// GetVendorByID 根据 ID 获取供应商
+// GetVendorByID 根据 ID 获取供应商（不含已删除）
 func GetVendorByID(id int) (*Vendor, error) {
 	var vendor Vendor
-	err := DB.Where("id = ?", id).First(&vendor).Error
+	err := DB.Where("id = ? AND status != ?", id, VendorStatusDeleted).First(&vendor).Error
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +105,8 @@ func UpdateVendorStatus(id int, status int) error {
 	return DB.Model(&Vendor{}).Where("id = ?", id).Update("status", status).Error
 }
 
-// DeleteVendor 删除供应商（软删除）
+// DeleteVendor 删除供应商（置为已删除状态，非物理删除）
 func DeleteVendor(id int) error {
-	return DB.Delete(&Vendor{}, id).Error
+	return DB.Model(&Vendor{}).Where("id = ?", id).Update("status", VendorStatusDeleted).Error
 }
 
