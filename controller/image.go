@@ -90,8 +90,9 @@ func ImageGenerate(c *gin.Context) {
 	// 5. 解密 API Key
 	apiKey, err := common.DecryptSecret(vendor.APIKey)
 	if err != nil {
+		// 内部错误仅记日志，不向调用方泄露细节
 		common.SysErrorf("[ImageGenerate] 供应商密钥解密失败: vendor=%s, err=%v", vendor.Name, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "供应商密钥解密失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "服务暂时不可用，请稍后再试"})
 		return
 	}
 
@@ -122,10 +123,10 @@ func ImageGenerate(c *gin.Context) {
 	}
 
 	// 8. 计算积分消耗
-	creditsAmount := int64(0)
+	creditsAmount := float64(0)
 	creditRule, err := model.GetCreditRuleByModelID(m.ID)
 	if err == nil && creditRule != nil {
-		creditsAmount = int64(creditRule.BaseCredits)
+		creditsAmount = creditRule.BaseCredits
 		// 检查是否有参数组合差异化定价：某组合的所有条件都命中才使用该积分
 		for _, item := range creditRule.Items {
 			matched := len(item.Conditions) > 0
@@ -136,7 +137,7 @@ func ImageGenerate(c *gin.Context) {
 				}
 			}
 			if matched {
-				creditsAmount = int64(item.Credits)
+				creditsAmount = item.Credits
 				break
 			}
 		}

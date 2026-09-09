@@ -39,8 +39,8 @@ func AdminGetUsers(c *gin.Context) {
 		Role        int    `json:"role"`
 		Status      int    `json:"status"`
 		Email       string `json:"email"`
-		Credits     int64  `json:"credits"`
-		UsedCredits int64  `json:"used_credits"`
+		Credits     float64 `json:"credits"`
+		UsedCredits float64 `json:"used_credits"`
 		CreatedAt   string `json:"created_at"`
 	}
 
@@ -74,7 +74,7 @@ type AdminCreateUserRequest struct {
 	Password    string `json:"password" binding:"required"`
 	DisplayName string `json:"display_name"`
 	Role        int    `json:"role"`
-	Credits     int64  `json:"credits"`
+	Credits     float64 `json:"credits"`
 }
 
 // AdminCreateUser 管理员创建用户
@@ -112,9 +112,10 @@ func AdminCreateUser(c *gin.Context) {
 	}
 
 	if err := model.AdminCreateUser(&user); err != nil {
+		common.SysErrorf("[AdminCreateUser] 创建用户失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "创建用户失败: " + err.Error(),
+			"message": "创建用户失败",
 		})
 		return
 	}
@@ -179,7 +180,8 @@ func AdminUpdateUser(c *gin.Context) {
 	}
 
 	if err := model.UpdateUser(id, updates); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "更新用户失败: " + err.Error()})
+		common.SysErrorf("[AdminUpdateUser] 更新用户失败: id=%d, err=%v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "更新用户失败"})
 		return
 	}
 
@@ -305,8 +307,8 @@ func AdminUpdateUserStatus(c *gin.Context) {
 
 // AdminAdjustUserCreditsRequest 积分调整请求
 type AdminAdjustUserCreditsRequest struct {
-	Mode  string `json:"mode" binding:"required"`
-	Value int64  `json:"value" binding:"required"`
+	Mode  string  `json:"mode" binding:"required"`
+	Value float64 `json:"value" binding:"required"`
 }
 
 // AdminAdjustUserCredits 管理员调整用户积分
@@ -346,9 +348,10 @@ func AdminAdjustUserCredits(c *gin.Context) {
 	}
 
 	if err := model.AdjustUserCredits(id, req.Mode, req.Value); err != nil {
+		common.SysErrorf("[AdminAdjustUserCredits] 积分调整失败: id=%d, mode=%s, err=%v", id, req.Mode, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "积分调整失败: " + err.Error(),
+			"message": "积分调整失败",
 		})
 		return
 	}

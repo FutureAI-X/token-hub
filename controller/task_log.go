@@ -31,7 +31,7 @@ func AdminGetTaskLogs(c *gin.Context) {
 		ID           int    `json:"id"`
 		TaskID       string `json:"task_id"`
 		Status       string `json:"status"`
-		Credits      int64  `json:"credits"`
+		Credits      float64 `json:"credits"`
 		CreditsRefunded bool `json:"credits_refunded"`
 		CreatedAt    string `json:"created_at"`
 		UpdatedAt    string `json:"updated_at"`
@@ -108,7 +108,7 @@ func GetUserTaskLogs(c *gin.Context) {
 		ID            int    `json:"id"`
 		TaskID        string `json:"task_id"`
 		Status        string `json:"status"`
-		Credits        int64  `json:"credits"`
+		Credits        float64 `json:"credits"`
 		CreditsRefunded bool  `json:"credits_refunded"`
 		CreatedAt     string `json:"created_at"`
 		UpdatedAt     string `json:"updated_at"`

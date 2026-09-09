@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
@@ -41,7 +42,8 @@ func AdminCreateVendorModel(c *gin.Context) {
 	}
 
 	if err := model.CreateVendorModel(&vm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建失败: " + err.Error()})
+		common.SysErrorf("[AdminCreateVendorModel] 创建供应商模型失败: vendorID=%d, err=%v", vm.VendorID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建失败"})
 		return
 	}
 

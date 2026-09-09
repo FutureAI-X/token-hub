@@ -18,7 +18,7 @@ type Task struct {
 	ModelID        int        `json:"model_id" gorm:"index;not null;default:0"`
 	EndpointID     int        `json:"endpoint_id" gorm:"index;not null;default:0"`
 	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
-	Credits        int64      `json:"credits" gorm:"default:0"`                           // 消耗的积分数量
+	Credits        float64    `json:"credits" gorm:"type:numeric(20,6);default:0"`        // 消耗的积分数量
 	CreditsRefunded bool      `json:"credits_refunded" gorm:"default:false"`              // 积分是否已退还
 	VendorResponse string     `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
 	QueryResponse  string     `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
@@ -42,7 +42,7 @@ func CreateTask(task *Task) error {
 // CreateTaskAndDeduct 原子创建任务并扣除积分
 // 事务内先创建任务（此时任务ID已知），再按规则扣除积分；
 // 任一失败则整体回滚，避免出现「已创建但未支付」的孤儿任务。
-func CreateTaskAndDeduct(task *Task, amount int64, remark string) error {
+func CreateTaskAndDeduct(task *Task, amount float64, remark string) error {
 	return DB.Transaction(func(tx *gorm.DB) error {
 		// 先创建任务
 		if err := tx.Create(task).Error; err != nil {

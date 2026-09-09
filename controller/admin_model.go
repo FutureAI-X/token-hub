@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
@@ -67,7 +68,8 @@ func AdminCreateModel(c *gin.Context) {
 	}
 
 	if err := model.CreateModel(&m); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建模型失败: " + err.Error()})
+		common.SysErrorf("[AdminCreateModel] 创建模型失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建模型失败"})
 		return
 	}
 

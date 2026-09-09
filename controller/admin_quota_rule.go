@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
@@ -153,7 +154,8 @@ func AdminSaveCreditRule(c *gin.Context) {
 		rule.Items = buildCreditRuleItems(req.Items)
 
 		if err := model.CreateCreditRule(rule); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建积分规则失败: " + err.Error()})
+			common.SysErrorf("[AdminSaveCreditRule] 创建积分规则失败: modelID=%d, err=%v", modelID, err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建积分规则失败"})
 			return
 		}
 

@@ -34,11 +34,15 @@ func GetTokens(c *gin.Context) {
 	dataKey := c.Query("data_key")
 	items := make([]tokenResponse, len(tokens))
 	for i, t := range tokens {
-		key := t.Key
+		key := ""
 		if dataKey != "" {
+			// 提供 data_key 时返回加密后的密钥
 			if encrypted, err := common.EncryptWithKey(t.Key, dataKey); err == nil {
 				key = encrypted
 			}
+		} else {
+			// 未提供 data_key 时仅返回脱敏值，不返回明文
+			key = common.MaskSecret(t.Key)
 		}
 		items[i] = tokenResponse{
 			ID:        t.ID,
@@ -87,7 +91,8 @@ func CreateToken(c *gin.Context) {
 	}
 
 	if err := model.CreateToken(&token); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建 Token 失败: " + err.Error()})
+		common.SysErrorf("[CreateToken] 创建 Token 失败: userID=%v, err=%v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建 Token 失败"})
 		return
 	}
 

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
@@ -42,7 +43,8 @@ func SyncModelEndpoints(c *gin.Context) {
 	}
 
 	if err := model.SyncModelEndpoints(modelID, req.EndpointIDs); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "同步失败: " + err.Error()})
+		common.SysErrorf("[SyncModelEndpoints] 同步端点关联失败: modelID=%d, err=%v", modelID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "同步失败"})
 		return
 	}
 

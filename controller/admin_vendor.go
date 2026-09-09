@@ -31,8 +31,9 @@ func AdminGetVendors(c *gin.Context) {
 	for i, v := range vendors {
 		apiKey := ""
 		if v.APIKey != "" {
+			// 解密后仅做脱敏处理，不向客户端返回明文密钥
 			if decrypted, err := common.DecryptSecret(v.APIKey); err == nil {
-				apiKey = decrypted
+				apiKey = common.MaskSecret(decrypted)
 			}
 		}
 		items[i] = vendorResponse{
@@ -92,7 +93,8 @@ func AdminCreateVendor(c *gin.Context) {
 	}
 
 	if err := model.CreateVendor(&vendor); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建供应商失败: " + err.Error()})
+		common.SysErrorf("[AdminCreateVendor] 创建供应商失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建供应商失败"})
 		return
 	}
 

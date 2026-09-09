@@ -9,30 +9,48 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"sync"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 // serverKey 服务端加密密钥（从环境变量派生，用于加密存储敏感数据）
-var serverKey string
+// 延迟加载，确保 .env 已先被加载
+var (
+	serverKeyOnce sync.Once
+	serverKey     string
+)
 
-func init() {
-	secret := os.Getenv("SECRET_KEY")
-	if secret == "" {
-		secret = "token-hub-secret-change-me"
+// getServerKey 获取服务端加密密钥（首次调用时加载 .env）
+func getServerKey() string {
+	serverKeyOnce.Do(func() {
+		ensureEnvLoaded()
+		secret := os.Getenv("SECRET_KEY")
+		if secret == "" {
+			secret = "token-hub-secret-change-me"
+		}
+		hash := sha256.Sum256([]byte(secret))
+		serverKey = base64.StdEncoding.EncodeToString(hash[:])
+	})
+	return serverKey
+}
+
+// MaskSecret 脱敏显示密钥（仅保留末4位）
+func MaskSecret(s string) string {
+	if len(s) <= 4 {
+		return "****"
 	}
-	hash := sha256.Sum256([]byte(secret))
-	serverKey = base64.StdEncoding.EncodeToString(hash[:])
+	return "****" + s[len(s)-4:]
 }
 
 // EncryptSecret 使用服务端密钥加密敏感数据
 func EncryptSecret(plaintext string) (string, error) {
-	return EncryptWithKey(plaintext, serverKey)
+	return EncryptWithKey(plaintext, getServerKey())
 }
 
 // DecryptSecret 使用服务端密钥解密敏感数据
 func DecryptSecret(ciphertext string) (string, error) {
-	return DecryptWithKey(ciphertext, serverKey)
+	return DecryptWithKey(ciphertext, getServerKey())
 }
 
 // Password2Hash 将密码转换为 bcrypt 哈希

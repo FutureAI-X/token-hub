@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -26,6 +25,14 @@ func main() {
 	}
 	defer model.CloseDB()
 
+	// 安全提示：检测弱/默认密钥
+	if s := os.Getenv("JWT_SECRET"); s == "" || s == "token-hub-jwt-secret-change-me" {
+		common.SysErrorf("[安全] JWT_SECRET 未设置或为默认值，JWT 可被伪造，请设置强随机密钥!")
+	}
+	if s := os.Getenv("SECRET_KEY"); s == "" || s == "token-hub-secret-change-me" {
+		common.SysErrorf("[安全] SECRET_KEY 未设置或为默认值，敏感数据加密可被破解，请设置强随机密钥!")
+	}
+
 	// 恢复未完成任务的轮询
 	go controller.RecoverPendingTasks()
 
@@ -37,12 +44,12 @@ func main() {
 	// 创建 Gin 引擎
 	server := gin.New()
 
-	// 添加 Recovery 中间件
+	// 添加 Recovery 中间件（不向客户端泄露 panic 细节）
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
-		log.Printf("panic detected: %v", err)
+		log.Printf("[PANIC] %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
 		c.JSON(500, gin.H{
 			"error": gin.H{
-				"message": fmt.Sprintf("Internal server error: %v", err),
+				"message": "Internal server error",
 				"type":    "server_error",
 			},
 		})

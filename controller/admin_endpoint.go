@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
@@ -42,7 +43,8 @@ func AdminCreateEndpoint(c *gin.Context) {
 	}
 
 	if err := model.CreateEndpoint(&ep); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建失败: " + err.Error()})
+		common.SysErrorf("[AdminCreateEndpoint] 创建端点失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "创建失败"})
 		return
 	}
 

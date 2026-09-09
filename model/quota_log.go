@@ -17,9 +17,9 @@ type CreditLog struct {
 	ID        int       `json:"id" gorm:"primaryKey"`
 	UserID    int       `json:"user_id" gorm:"index;not null"`
 	TaskID    string    `json:"task_id" gorm:"index;size:64"`
-	Credits   int64     `json:"credits" gorm:"not null"`      // 积分数量（正数）
-	Type      string    `json:"type" gorm:"size:32;not null"` // deduct=扣除, refund=退还
-	Remark    string    `json:"remark" gorm:"size:255"`       // 备注
+	Credits   float64   `json:"credits" gorm:"type:numeric(20,6);not null"` // 积分数量（正数）
+	Type      string    `json:"type" gorm:"size:32;not null"`                // deduct=扣除, refund=退还
+	Remark    string    `json:"remark" gorm:"size:255"`                      // 备注
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -29,7 +29,7 @@ func (CreditLog) TableName() string {
 }
 
 // deductCreditsTx 在给定事务中扣除用户积分（同事务维护 used_credits）
-func deductCreditsTx(tx *gorm.DB, userID int, taskID string, amount int64, remark string) error {
+func deductCreditsTx(tx *gorm.DB, userID int, taskID string, amount float64, remark string) error {
 	// 扣除用户积分并累计已用积分
 	result := tx.Model(&User{}).Where("id = ? AND credits >= ?", userID, amount).
 		Updates(map[string]interface{}{
@@ -55,7 +55,7 @@ func deductCreditsTx(tx *gorm.DB, userID int, taskID string, amount int64, remar
 }
 
 // refundCreditsTx 在给定事务中退还用户积分（同事务维护 used_credits）
-func refundCreditsTx(tx *gorm.DB, userID int, taskID string, amount int64, remark string) error {
+func refundCreditsTx(tx *gorm.DB, userID int, taskID string, amount float64, remark string) error {
 	// 增加用户积分并减少已用积分（已用不足时按0计算，避免负值）
 	if err := tx.Model(&User{}).Where("id = ?", userID).
 		Updates(map[string]interface{}{

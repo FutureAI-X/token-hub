@@ -51,10 +51,10 @@ type User struct {
 	Status int `json:"status" gorm:"default:1"`
 
 	// 当前积分，0 表示无积分
-	Credits int64 `json:"credits" gorm:"default:0"`
+	Credits float64 `json:"credits" gorm:"type:numeric(20,6);default:0"`
 
 	// 已使用积分
-	UsedCredits int64 `json:"used_credits" gorm:"default:0"`
+	UsedCredits float64 `json:"used_credits" gorm:"type:numeric(20,6);default:0"`
 
 	// 邮箱，用于通知和找回密码，长度限制64字符
 	Email string `json:"email" gorm:"size:64"`
@@ -275,7 +275,7 @@ func UpdateUser(id int, updates map[string]interface{}) error {
 }
 
 // AdjustUserCredits 调整用户积分
-func AdjustUserCredits(id int, mode string, value int64) error {
+func AdjustUserCredits(id int, mode string, value float64) error {
 	user, err := GetUserByID(id)
 	if err != nil {
 		return err
@@ -305,8 +305,9 @@ func CreateRootUserIfNeed() error {
 		return nil
 	}
 
-	// 创建默认 root 用户
-	hashedPassword, err := common.Password2Hash("123456")
+	// 创建默认 root 用户（随机生成初始密码，避免使用已知默认密码）
+	initialPassword := common.GenerateRandomPassword(16)
+	hashedPassword, err := common.Password2Hash(initialPassword)
 	if err != nil {
 		return err
 	}
@@ -324,6 +325,6 @@ func CreateRootUserIfNeed() error {
 		return err
 	}
 
-	common.SysLog("created default root user (username: root, password: 123456)")
+	common.SysErrorf("已创建默认 root 用户(用户名: root)，初始密码: %s —— 请立即修改!", initialPassword)
 	return nil
 }

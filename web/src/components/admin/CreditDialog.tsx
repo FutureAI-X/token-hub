@@ -55,7 +55,7 @@ export function CreditDialog({
     return () => document.removeEventListener('keydown', handleEsc)
   }, [open, onOpenChange])
 
-  const amountValue = parseInt(amount) || 0
+  const amountValue = parseFloat(amount) || 0
 
   const getPreview = () => {
     switch (mode) {

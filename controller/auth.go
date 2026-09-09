@@ -2,11 +2,48 @@ package controller
 
 import (
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
 	"github.com/gin-gonic/gin"
 )
+
+// ── 登录频次限制（防暴力破解）──
+var (
+	loginAttempts = make(map[string][]time.Time)
+	loginMu       sync.Mutex
+)
+
+const (
+	loginMaxAttempts = 5                    // 窗口内最大尝试次数
+	loginWindow      = 5 * time.Minute      // 时间窗口
+)
+
+// checkLoginRateLimit 检查登录频率，达到上限则拒绝
+func checkLoginRateLimit(clientIP string) bool {
+	now := time.Now()
+	loginMu.Lock()
+	defer loginMu.Unlock()
+
+	// 清理过期记录
+	var recent []time.Time
+	for _, t := range loginAttempts[clientIP] {
+		if now.Sub(t) < loginWindow {
+			recent = append(recent, t)
+		}
+	}
+
+	if len(recent) >= loginMaxAttempts {
+		loginAttempts[clientIP] = recent
+		return false
+	}
+
+	recent = append(recent, now)
+	loginAttempts[clientIP] = recent
+	return true
+}
 
 // LoginRequest 登录请求
 type LoginRequest struct {
@@ -16,6 +53,15 @@ type LoginRequest struct {
 
 // Login 用户登录
 func Login(c *gin.Context) {
+	// 登录前限流
+	if !checkLoginRateLimit(c.ClientIP()) {
+		c.JSON(http.StatusTooManyRequests, gin.H{
+			"success": false,
+			"message": "尝试过于频繁，请稍后再试",
+		})
+		return
+	}
+
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -32,23 +78,11 @@ func Login(c *gin.Context) {
 	}
 
 	if err := user.ValidateAndFill(); err != nil {
-		switch err {
-		case model.ErrUserDeleted:
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"message": "用户已删除",
-			})
-		case model.ErrUserDisabled:
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"message": "用户已被禁用",
-			})
-		default:
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"message": "用户名或密码错误",
-			})
-		}
+		// 统一错误文案，避免账号枚举
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"message": "用户名或密码错误",
+		})
 		return
 	}
 
@@ -140,9 +174,10 @@ func UpdateProfile(c *gin.Context) {
 
 	err := model.DB.Model(&model.User{}).Where("id = ?", userID).Updates(updates).Error
 	if err != nil {
+		common.SysErrorf("[UpdateProfile] 更新资料失败: userID=%v, err=%v", userID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "更新失败: " + err.Error(),
+			"message": "更新失败",
 		})
 		return
 	}

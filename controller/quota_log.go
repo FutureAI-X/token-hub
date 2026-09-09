@@ -36,7 +36,7 @@ func GetCreditLogs(c *gin.Context) {
 	type logResponse struct {
 		ID        int    `json:"id"`
 		TaskID    string `json:"task_id"`
-		Credits   int64  `json:"credits"`
+		Credits   float64 `json:"credits"`
 		Type      string `json:"type"`
 		Remark    string `json:"remark"`
 		CreatedAt string `json:"created_at"`
