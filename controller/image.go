@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -144,16 +145,7 @@ func ImageGenerate(c *gin.Context) {
 	// 9. 获取当前用户ID（由 APIAuth 中间件从 API Key 解析）
 	userID := c.GetInt("user_id")
 
-	// 10. 扣除积分
-	if creditsAmount > 0 && userID > 0 {
-		if err := model.DeductCredits(userID, "", creditsAmount, "图像生成任务"); err != nil {
-			common.SysErrorf("[ImageGenerate] 积分扣除失败: userID=%d, amount=%d, err=%v", userID, creditsAmount, err)
-			c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
-			return
-		}
-	}
-
-	// 11. 调用成功，写入任务表
+	// 10. 构造任务，先建任务再按规则扣除积分（原子：扣积分失败则整体回滚，不留孤儿任务）
 	vendorRespJSON, _ := json.Marshal(result.Data)
 	task := model.Task{
 		TaskID:         model.GenerateTaskID(),
@@ -165,19 +157,25 @@ func ImageGenerate(c *gin.Context) {
 		Credits:        creditsAmount,
 		VendorResponse: string(vendorRespJSON),
 	}
-	if err := model.CreateTask(&task); err != nil {
-		common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
-		// 退还积分
-		if creditsAmount > 0 && userID > 0 {
-			model.RefundCredits(userID, "", creditsAmount, "任务创建失败退还")
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
-		return
-	}
 
-	// 更新积分日志的任务ID
 	if creditsAmount > 0 && userID > 0 {
-		model.UpdateCreditLogTaskID(userID, task.TaskID)
+		if err := model.CreateTaskAndDeduct(&task, creditsAmount, "图像生成任务"); err != nil {
+			if errors.Is(err, model.ErrInsufficientCredits) {
+				common.SysErrorf("[ImageGenerate] 积分不足: userID=%d, amount=%d", userID, creditsAmount)
+				c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
+			} else {
+				common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
+			}
+			return
+		}
+	} else {
+		// 免费任务或未鉴权：不扣积分，仅建任务
+		if err := model.CreateTask(&task); err != nil {
+			common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
+			return
+		}
 	}
 
 	common.SysLogf("[ImageGenerate] 任务创建成功: taskId=%s, vendor=%s, model=%s", task.TaskID, vendor.Name, modelName)

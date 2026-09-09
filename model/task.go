@@ -39,6 +39,20 @@ func CreateTask(task *Task) error {
 	return DB.Create(task).Error
 }
 
+// CreateTaskAndDeduct 原子创建任务并扣除积分
+// 事务内先创建任务（此时任务ID已知），再按规则扣除积分；
+// 任一失败则整体回滚，避免出现「已创建但未支付」的孤儿任务。
+func CreateTaskAndDeduct(task *Task, amount int64, remark string) error {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		// 先创建任务
+		if err := tx.Create(task).Error; err != nil {
+			return err
+		}
+		// 再扣除积分（积分日志直接引用真实任务ID）
+		return deductCreditsTx(tx, task.UserID, task.TaskID, amount, remark)
+	})
+}
+
 // GetTaskByTaskID 根据任务ID获取任务
 func GetTaskByTaskID(taskID string) (*Task, error) {
 	var task Task
