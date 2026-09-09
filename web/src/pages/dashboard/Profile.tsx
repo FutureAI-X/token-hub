@@ -306,7 +306,16 @@ export function Profile() {
           </div>
           <div>
             <p className='text-muted-foreground text-xs'>当前积分</p>
-            <p className='text-2xl font-bold tabular-nums'>{formatPoints(user.credits - user.used_credits)}</p>
+            <p className='text-2xl font-bold tabular-nums'>{formatPoints(user.credits)}</p>
+          </div>
+        </div>
+        <div className='border-border/40 mt-4 flex items-center gap-3 border-t pt-4'>
+          <div className='bg-muted flex size-10 items-center justify-center rounded-lg'>
+            <Coins className='text-muted-foreground size-5' />
+          </div>
+          <div>
+            <p className='text-muted-foreground text-xs'>已消耗积分</p>
+            <p className='text-lg font-semibold tabular-nums'>{formatPoints(user.used_credits)}</p>
           </div>
         </div>
       </div>

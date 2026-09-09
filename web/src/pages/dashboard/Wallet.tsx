@@ -60,8 +60,6 @@ export function Wallet() {
     )
   }
 
-  const balance = user.credits - user.used_credits
-
   return (
     <div className='space-y-6'>
       {/* 页面标题 */}
@@ -74,13 +72,20 @@ export function Wallet() {
 
       {/* 积分卡片 */}
       <div className='border-border/60 rounded-xl border p-8'>
-        <div className='flex items-center gap-4'>
+        <div className='flex items-center gap-6'>
           <div className='bg-emerald-500/10 flex size-14 items-center justify-center rounded-xl'>
             <Coins className='size-7 text-emerald-600' />
           </div>
-          <div>
-            <p className='text-muted-foreground text-sm font-medium'>当前积分</p>
-            <p className='text-4xl font-bold tabular-nums'>{formatPoints(balance)}</p>
+          <div className='flex items-center gap-8'>
+            <div>
+              <p className='text-muted-foreground text-sm font-medium'>当前积分</p>
+              <p className='text-4xl font-bold tabular-nums'>{formatPoints(user.credits)}</p>
+            </div>
+            <div className='border-border/40 h-12 border-l' />
+            <div>
+              <p className='text-muted-foreground text-sm font-medium'>已消耗积分</p>
+              <p className='text-2xl font-bold tabular-nums text-muted-foreground'>{formatPoints(user.used_credits)}</p>
+            </div>
           </div>
         </div>
       </div>
