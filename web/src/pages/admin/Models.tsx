@@ -8,6 +8,7 @@ import {
   Loader2,
   X,
   Coins,
+  Link2,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import {
@@ -20,6 +21,7 @@ import {
 } from '../../api/admin-model'
 import { ConfirmDialog } from '../../components/admin/ConfirmDialog'
 import { QuotaRuleManager } from '../../components/admin/QuotaRuleManager'
+import { ModelEndpointManager } from '../../components/admin/ModelEndpointManager'
 
 const STATUS_CONFIG: Record<number, { label: string; className: string }> = {
   1: { label: '正常', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
@@ -37,6 +39,8 @@ export function AdminModels() {
   const [deleteRow, setDeleteRow] = useState<AdminModel | null>(null)
   const [quotaOpen, setQuotaOpen] = useState(false)
   const [quotaRow, setQuotaRow] = useState<AdminModel | null>(null)
+  const [endpointOpen, setEndpointOpen] = useState(false)
+  const [endpointRow, setEndpointRow] = useState<AdminModel | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   // 表单
@@ -203,6 +207,9 @@ export function AdminModels() {
                         <button onClick={() => { setQuotaRow(m); setQuotaOpen(true) }} className='hover:bg-amber-500/10 text-amber-600 dark:text-amber-400 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
                           <Coins className='size-3.5' /> 积分
                         </button>
+                        <button onClick={() => { setEndpointRow(m); setEndpointOpen(true) }} className='hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors'>
+                          <Link2 className='size-3.5' /> 端点
+                        </button>
                         <button onClick={() => handleToggle(m)}
                           className={cn('inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors',
                             m.status === 1 ? 'hover:bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400')}>
@@ -283,6 +290,15 @@ export function AdminModels() {
           onOpenChange={setQuotaOpen}
           modelId={quotaRow.id}
           modelName={quotaRow.name}
+        />
+      )}
+
+      {endpointRow && (
+        <ModelEndpointManager
+          open={endpointOpen}
+          onOpenChange={setEndpointOpen}
+          modelId={endpointRow.id}
+          modelName={endpointRow.name}
         />
       )}
     </div>
