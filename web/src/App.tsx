@@ -22,6 +22,8 @@ import { AdminVendors } from './pages/admin/Vendors'
 import { AdminEndpoints } from './pages/admin/Endpoints'
 import { AdminModels } from './pages/admin/Models'
 import { AdminVendorModels } from './pages/admin/VendorModels'
+import { AdminCreditLogs } from './pages/admin/CreditLogs'
+import { AdminTaskLogs } from './pages/admin/TaskLogs'
 
 function App() {
   return (
@@ -44,6 +46,8 @@ function App() {
           <Route path='admin/vendors' element={<AdminVendors />} />
           <Route path='admin/models' element={<AdminModels />} />
           <Route path='admin/vendor-models' element={<AdminVendorModels />} />
+          <Route path='admin/credit-logs' element={<AdminCreditLogs />} />
+          <Route path='admin/task-logs' element={<AdminTaskLogs />} />
         </Route>
       </Routes>
     </HashRouter>

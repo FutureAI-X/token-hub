@@ -18,13 +18,16 @@ type Task struct {
 	ModelID        int        `json:"model_id" gorm:"index;not null;default:0"`
 	EndpointID     int        `json:"endpoint_id" gorm:"index;not null;default:0"`
 	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
-	Credits        float64    `json:"credits" gorm:"type:numeric(20,6);default:0"`        // 消耗的积分数量
-	CreditsRefunded bool      `json:"credits_refunded" gorm:"default:false"`              // 积分是否已退还
-	VendorResponse string     `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
-	QueryResponse  string     `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	Credits        float64        `json:"credits" gorm:"type:numeric(20,6);default:0"`        // 消耗的积分数量
+	CreditsRefunded bool          `json:"credits_refunded" gorm:"default:false"`              // 积分是否已退还
+	VendorResponse string         `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
+	QueryResponse  string         `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `json:"-" gorm:"index"`
+
+	// 非数据库字段
+	Username string `json:"username,omitempty" gorm:"-"`
 }
 
 // GenerateTaskID 生成唯一任务ID
@@ -123,14 +126,17 @@ func GetPendingTasks() ([]Task, error) {
 	return tasks, err
 }
 
-// GetTaskLogs 获取任务日志（分页，管理员用）
-func GetTaskLogs(page, pageSize int, status string) ([]Task, int64, error) {
+// GetTaskLogs 获取任务日志（分页，管理员用，支持按用户/状态筛选）
+func GetTaskLogs(page, pageSize int, status string, userID int) ([]Task, int64, error) {
 	var tasks []Task
 	var total int64
 
 	query := DB.Model(&Task{})
 	if status != "" {
 		query = query.Where("status = ?", status)
+	}
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
 	}
 
 	// 获取总数
@@ -141,6 +147,10 @@ func GetTaskLogs(page, pageSize int, status string) ([]Task, int64, error) {
 	// 分页查询
 	offset := (page - 1) * pageSize
 	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&tasks).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := fillTaskUsernames(tasks); err != nil {
 		return nil, 0, err
 	}
 
@@ -166,7 +176,25 @@ func GetTaskLogsByUserID(userID int, page, pageSize int, status string) ([]Task,
 		return nil, 0, err
 	}
 
+	if err := fillTaskUsernames(tasks); err != nil {
+		return nil, 0, err
+	}
+
 	return tasks, total, nil
+}
+
+// fillTaskUsernames 为任务列表填充用户名
+func fillTaskUsernames(tasks []Task) error {
+	userMap, err := GetUsernameMap()
+	if err != nil {
+		return err
+	}
+	for i := range tasks {
+		if name, ok := userMap[tasks[i].UserID]; ok {
+			tasks[i].Username = name
+		}
+	}
+	return nil
 }
 
 // GetTaskByID 根据 ID 获取任务
@@ -175,6 +203,12 @@ func GetTaskByID(id int) (*Task, error) {
 	err := DB.Where("id = ?", id).First(&task).Error
 	if err != nil {
 		return nil, err
+	}
+	// 填充用户名
+	if userMap, err := GetUsernameMap(); err == nil {
+		if name, ok := userMap[task.UserID]; ok {
+			task.Username = name
+		}
 	}
 	return &task, nil
 }

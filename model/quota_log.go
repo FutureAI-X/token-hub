@@ -21,6 +21,9 @@ type CreditLog struct {
 	Type      string    `json:"type" gorm:"size:32;not null"`                // deduct=扣除, refund=退还
 	Remark    string    `json:"remark" gorm:"size:255"`                      // 备注
 	CreatedAt time.Time `json:"created_at"`
+
+	// 非数据库字段
+	Username string `json:"username,omitempty" gorm:"-"`
 }
 
 // TableName 指定表名（原为 quota_logs）
@@ -92,7 +95,51 @@ func GetCreditLogsByUserID(userID int, page, pageSize int) ([]CreditLog, int64, 
 		return nil, 0, err
 	}
 
+	if err := fillCreditLogUsernames(logs); err != nil {
+		return nil, 0, err
+	}
+
 	return logs, total, nil
+}
+
+// GetAllCreditLogs 获取全部用户积分日志（管理员用，支持按用户筛选）
+func GetAllCreditLogs(page, pageSize int, userID int) ([]CreditLog, int64, error) {
+	var logs []CreditLog
+	var total int64
+
+	query := DB.Model(&CreditLog{})
+	if userID > 0 {
+		query = query.Where("user_id = ?", userID)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	if err := query.Order("id DESC").Offset(offset).Limit(pageSize).Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := fillCreditLogUsernames(logs); err != nil {
+		return nil, 0, err
+	}
+
+	return logs, total, nil
+}
+
+// fillCreditLogUsernames 为积分日志列表填充用户名
+func fillCreditLogUsernames(logs []CreditLog) error {
+	userMap, err := GetUsernameMap()
+	if err != nil {
+		return err
+	}
+	for i := range logs {
+		if name, ok := userMap[logs[i].UserID]; ok {
+			logs[i].Username = name
+		}
+	}
+	return nil
 }
 
 // GetCreditLogByTaskID 根据任务ID获取积分日志

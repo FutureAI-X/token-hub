@@ -1,29 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import {
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  Minus,
-  Plus,
-} from 'lucide-react'
+import { Loader2, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { getAdminCreditLogs, type AdminCreditLog } from '../../api/admin'
+import { UserSelect } from '../../components/admin/UserSelect'
 import { CopyButton } from '../../components/CopyButton'
-
-const BASE = '/api/user'
-
-function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
-
-interface CreditLog {
-  id: number
-  task_id: string
-  credits: number
-  type: string
-  remark: string
-  created_at: string
-}
 
 const TYPE_CONFIG: Record<string, { label: string; className: string; icon: typeof Minus }> = {
   deduct: { label: '扣除', className: 'text-red-600 dark:text-red-400', icon: Minus },
@@ -48,27 +28,29 @@ function formatTime(timeStr?: string): string {
   }
 }
 
-export function CreditLogs() {
-  const [logs, setLogs] = useState<CreditLog[]>([])
+export function AdminCreditLogs() {
+  const [logs, setLogs] = useState<AdminCreditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
+  const [userFilter, setUserFilter] = useState(0)
 
   const loadLogs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`${BASE}/credit-logs?page=${page}&page_size=${pageSize}`, {
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      const res = await getAdminCreditLogs({
+        page,
+        page_size: pageSize,
+        ...(userFilter ? { user_id: userFilter } : {}),
       })
-      const data = await res.json()
-      if (data.success) {
-        setLogs(data.data.items || [])
-        setTotal(data.data.total || 0)
+      if (res.success) {
+        setLogs(res.data.items || [])
+        setTotal(res.data.total || 0)
       }
     } catch { /* ignore */ }
     finally { setLoading(false) }
-  }, [page, pageSize])
+  }, [page, pageSize, userFilter])
 
   useEffect(() => { loadLogs() }, [loadLogs])
 
@@ -78,11 +60,12 @@ export function CreditLogs() {
     <div className='space-y-6'>
       <div>
         <h2 className='text-2xl font-bold tracking-tight'>积分日志</h2>
-        <p className='text-muted-foreground mt-1 text-sm'>查看积分消耗和退还记录</p>
+        <p className='text-muted-foreground mt-1 text-sm'>查看全部用户的积分消耗和退还记录</p>
       </div>
 
-      {/* 统计信息 */}
-      <div className='flex items-center gap-3'>
+      {/* 筛选 */}
+      <div className='flex flex-wrap items-center gap-3'>
+        <UserSelect value={userFilter} onChange={(id) => { setUserFilter(id); setPage(1) }} />
         <span className='text-muted-foreground text-sm'>
           共 <span className='text-foreground font-medium'>{total}</span> 条记录
         </span>
@@ -95,6 +78,7 @@ export function CreditLogs() {
             <thead>
               <tr className='bg-muted/30 border-border/40 border-b'>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>用户</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>类型</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>积分</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>任务ID</th>
@@ -104,15 +88,16 @@ export function CreditLogs() {
             </thead>
             <tbody className='divide-border/40 divide-y'>
               {loading ? (
-                <tr><td colSpan={6} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
+                <tr><td colSpan={7} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : logs.length === 0 ? (
-                <tr><td colSpan={6} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无积分记录</p></td></tr>
+                <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无积分记录</p></td></tr>
               ) : logs.map((log) => {
                 const typeConf = TYPE_CONFIG[log.type] || TYPE_CONFIG.deduct
                 const TypeIcon = typeConf.icon
                 return (
                   <tr key={log.id} className='hover:bg-muted/20 transition-colors'>
                     <td className='px-4 py-3'><span className='text-muted-foreground font-mono text-xs'>{log.id}</span></td>
+                    <td className='px-4 py-3'><span className='font-medium'>{log.username || '-'}</span></td>
                     <td className='px-4 py-3'>
                       <span className={cn('inline-flex items-center gap-1 text-xs font-medium', typeConf.className)}>
                         <TypeIcon className='size-3' />

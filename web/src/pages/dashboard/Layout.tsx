@@ -45,6 +45,13 @@ export function DashboardLayout() {
           { title: '供应商模型', href: '/dashboard/admin/vendor-models', icon: Link2 },
         ],
       })
+      nav.push({
+        group: '运维',
+        items: [
+          { title: '积分日志', href: '/dashboard/admin/credit-logs', icon: History },
+          { title: '任务日志', href: '/dashboard/admin/task-logs', icon: FileText },
+        ],
+      })
     }
     return nav
   }, [isRoot])

@@ -226,6 +226,20 @@ func GetUserByID(id int) (*User, error) {
 	return &user, nil
 }
 
+// GetUsernameMap 获取用户ID到用户名的映射
+func GetUsernameMap() (map[int]string, error) {
+	var users []User
+	err := DB.Select("id", "username").Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[int]string, len(users))
+	for _, u := range users {
+		m[u.ID] = u.Username
+	}
+	return m, nil
+}
+
 // GetUsers 分页查询用户列表，支持关键词搜索
 func GetUsers(page, pageSize int, keyword string) ([]User, int64, error) {
 	var users []User

@@ -8,11 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AdminGetTaskLogs 管理员获取任务日志列表
+// AdminGetTaskLogs 管理员获取任务日志列表（支持按用户/状态筛选）
 func AdminGetTaskLogs(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	status := c.Query("status")
+	userID, _ := strconv.Atoi(c.Query("user_id"))
 
 	if page < 1 {
 		page = 1
@@ -21,32 +22,36 @@ func AdminGetTaskLogs(c *gin.Context) {
 		pageSize = 20
 	}
 
-	tasks, total, err := model.GetTaskLogs(page, pageSize, status)
+	tasks, total, err := model.GetTaskLogs(page, pageSize, status, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "获取任务日志失败"})
 		return
 	}
 
 	type taskResponse struct {
-		ID           int    `json:"id"`
-		TaskID       string `json:"task_id"`
-		Status       string `json:"status"`
-		Credits      float64 `json:"credits"`
-		CreditsRefunded bool `json:"credits_refunded"`
-		CreatedAt    string `json:"created_at"`
-		UpdatedAt    string `json:"updated_at"`
+		ID              int     `json:"id"`
+		TaskID          string  `json:"task_id"`
+		UserID          int     `json:"user_id"`
+		Username        string  `json:"username,omitempty"`
+		Status          string  `json:"status"`
+		Credits         float64 `json:"credits"`
+		CreditsRefunded bool    `json:"credits_refunded"`
+		CreatedAt       string  `json:"created_at"`
+		UpdatedAt       string  `json:"updated_at"`
 	}
 
 	items := make([]taskResponse, len(tasks))
 	for i, t := range tasks {
 		items[i] = taskResponse{
-			ID:            t.ID,
-			TaskID:        t.TaskID,
-			Status:        t.Status,
-			Credits:        t.Credits,
+			ID:              t.ID,
+			TaskID:          t.TaskID,
+			UserID:          t.UserID,
+			Username:        t.Username,
+			Status:          t.Status,
+			Credits:         t.Credits,
 			CreditsRefunded: t.CreditsRefunded,
-			CreatedAt:     t.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:     t.UpdatedAt.Format("2006-01-02 15:04:05"),
+			CreatedAt:       t.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:       t.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
@@ -105,13 +110,13 @@ func GetUserTaskLogs(c *gin.Context) {
 	}
 
 	type taskResponse struct {
-		ID            int    `json:"id"`
-		TaskID        string `json:"task_id"`
-		Status        string `json:"status"`
-		Credits        float64 `json:"credits"`
+		ID            int     `json:"id"`
+		TaskID        string  `json:"task_id"`
+		Status        string  `json:"status"`
+		Credits       float64 `json:"credits"`
 		CreditsRefunded bool  `json:"credits_refunded"`
-		CreatedAt     string `json:"created_at"`
-		UpdatedAt     string `json:"updated_at"`
+		CreatedAt     string  `json:"created_at"`
+		UpdatedAt     string  `json:"updated_at"`
 	}
 
 	items := make([]taskResponse, len(tasks))
@@ -120,7 +125,7 @@ func GetUserTaskLogs(c *gin.Context) {
 			ID:            t.ID,
 			TaskID:        t.TaskID,
 			Status:        t.Status,
-			Credits:        t.Credits,
+			Credits:       t.Credits,
 			CreditsRefunded: t.CreditsRefunded,
 			CreatedAt:     t.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:     t.UpdatedAt.Format("2006-01-02 15:04:05"),

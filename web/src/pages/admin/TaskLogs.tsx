@@ -10,7 +10,8 @@ import {
   Eye,
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
-import { getTaskLogs, getTaskLogDetail, type TaskLog } from '../../api/task-log'
+import { getAdminTaskLogs, getAdminTaskLogDetail, type AdminTaskLog } from '../../api/admin'
+import { UserSelect } from '../../components/admin/UserSelect'
 import { CopyButton } from '../../components/CopyButton'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string; icon: typeof Clock }> = {
@@ -50,36 +51,42 @@ function formatTime(timeStr?: string): string {
   }
 }
 
-export function TaskLogs() {
-  const [tasks, setTasks] = useState<TaskLog[]>([])
+export function AdminTaskLogs() {
+  const [tasks, setTasks] = useState<AdminTaskLog[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pageSize] = useState(20)
+  const [userFilter, setUserFilter] = useState(0)
   const [statusFilter, setStatusFilter] = useState('')
   const [detailOpen, setDetailOpen] = useState(false)
-  const [detailTask, setDetailTask] = useState<TaskLog | null>(null)
+  const [detailTask, setDetailTask] = useState<AdminTaskLog | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getTaskLogs({ page, page_size: pageSize, status: statusFilter || undefined })
+      const res = await getAdminTaskLogs({
+        page,
+        page_size: pageSize,
+        status: statusFilter || undefined,
+        ...(userFilter ? { user_id: userFilter } : {}),
+      })
       if (res.success) {
         setTasks(res.data.items || [])
         setTotal(res.data.total || 0)
       }
     } catch { /* ignore */ }
     finally { setLoading(false) }
-  }, [page, pageSize, statusFilter])
+  }, [page, pageSize, userFilter, statusFilter])
 
   useEffect(() => { loadTasks() }, [loadTasks])
 
-  const handleViewDetail = async (task: TaskLog) => {
+  const handleViewDetail = async (task: AdminTaskLog) => {
     setDetailLoading(true)
     setDetailOpen(true)
     try {
-      const res = await getTaskLogDetail(task.id)
+      const res = await getAdminTaskLogDetail(task.id)
       if (res.success) {
         setDetailTask(res.data)
       }
@@ -93,11 +100,12 @@ export function TaskLogs() {
     <div className='space-y-6'>
       <div>
         <h2 className='text-2xl font-bold tracking-tight'>任务日志</h2>
-        <p className='text-muted-foreground mt-1 text-sm'>查看系统任务执行记录</p>
+        <p className='text-muted-foreground mt-1 text-sm'>查看全部用户的任务执行记录</p>
       </div>
 
       {/* 筛选 */}
-      <div className='flex items-center gap-3'>
+      <div className='flex flex-wrap items-center gap-3'>
+        <UserSelect value={userFilter} onChange={(id) => { setUserFilter(id); setPage(1) }} />
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
@@ -119,6 +127,7 @@ export function TaskLogs() {
             <thead>
               <tr className='bg-muted/30 border-border/40 border-b'>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>ID</th>
+                <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>用户</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>任务ID</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>状态</th>
                 <th className='text-muted-foreground px-4 py-3 text-left text-xs font-semibold tracking-wider uppercase'>积分消耗</th>
@@ -131,13 +140,14 @@ export function TaskLogs() {
               {loading ? (
                 <tr><td colSpan={8} className='px-4 py-12 text-center'><Loader2 className='text-muted-foreground mx-auto size-6 animate-spin' /></td></tr>
               ) : tasks.length === 0 ? (
-                <tr><td colSpan={7} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无任务记录</p></td></tr>
+                <tr><td colSpan={8} className='px-4 py-12 text-center'><p className='text-muted-foreground text-sm'>暂无任务记录</p></td></tr>
               ) : tasks.map((task) => {
                 const statusConf = STATUS_CONFIG[task.status] || STATUS_CONFIG.submitted
                 const StatusIcon = statusConf.icon
                 return (
                   <tr key={task.id} className='hover:bg-muted/20 transition-colors'>
                     <td className='px-4 py-3'><span className='text-muted-foreground font-mono text-xs'>{task.id}</span></td>
+                    <td className='px-4 py-3'><span className='font-medium'>{task.username || '-'}</span></td>
                     <td className='px-4 py-3'>
                       <div className='flex items-center gap-1'>
                         <span className='font-mono text-xs break-all'>{task.task_id}</span>
@@ -223,6 +233,10 @@ export function TaskLogs() {
               ) : detailTask ? (
                 <div className='space-y-4'>
                   <div className='grid grid-cols-2 gap-4'>
+                    <div>
+                      <label className='text-muted-foreground text-xs font-medium'>用户</label>
+                      <p className='mt-1 text-sm'>{detailTask.username || '-'}</p>
+                    </div>
                     <div>
                       <label className='text-muted-foreground text-xs font-medium'>任务ID</label>
                       <p className='mt-1 font-mono text-sm'>{detailTask.task_id}</p>

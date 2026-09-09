@@ -105,6 +105,8 @@ func SetRouter(server *gin.Engine) {
 		adminRouter.PUT("/credit-rules/:id/status", controller.AdminUpdateCreditRuleStatus)
 		adminRouter.DELETE("/credit-rules/:id", controller.AdminDeleteCreditRule)
 
+		adminRouter.GET("/credit-logs", controller.AdminGetCreditLogs)
+
 		adminRouter.GET("/task-logs", controller.AdminGetTaskLogs)
 		adminRouter.GET("/task-logs/:id", controller.AdminGetTaskLogDetail)
 	}
