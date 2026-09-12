@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/FutureAI/token-hub/common"
@@ -85,6 +86,87 @@ func InitDB() error {
 		common.SysError("failed to create default models: " + err.Error())
 	}
 
+	// 计费采用 fail-closed：缺少规则的模型会拒绝服务而非静默免费。
+	// 启动时列出这些模型，便于上线前补齐。
+	warnModelsWithoutCreditRule()
+
+	return nil
+}
+
+// warnModelsWithoutCreditRule 启动时列出缺少启用计费规则的启用模型。
+// 计费是 fail-closed 的：未配置规则的模型会返回「暂不可用」，
+// 因此这里必须提前把清单打出来，避免上线后才发现模型不可用。
+func warnModelsWithoutCreditRule() {
+	var models []Model
+	if err := DB.Where("status = ?", 1).Find(&models).Error; err != nil {
+		common.SysError("failed to check credit rules: " + err.Error())
+		return
+	}
+
+	var missing []string
+	for _, m := range models {
+		var count int64
+		if err := DB.Model(&CreditRule{}).
+			Where("model_id = ? AND status = ?", m.ID, 1).
+			Count(&count).Error; err != nil {
+			continue
+		}
+		if count == 0 {
+			missing = append(missing, m.Name)
+		}
+	}
+
+	if len(missing) == 0 {
+		common.SysLogf("[计费] 全部 %d 个启用模型均已配置计费规则", len(models))
+		return
+	}
+
+	common.SysErrorf("[计费] 以下 %d 个启用模型缺少计费规则，调用将被拒绝: %s",
+		len(missing), strings.Join(missing, ", "))
+	common.SysErrorf("[计费] 请在管理后台为上述模型配置计费规则；如需免费，请显式配置一条 0 积分的规则")
+}
+
+// uniqueIndexPrechecks 需要在建立唯一索引前排查重复数据的表
+// （table / columns 均为编译期常量，不来自外部输入）
+var uniqueIndexPrechecks = []struct {
+	table   string
+	columns string
+	label   string
+}{
+	{"vendors", "name", "供应商名称"},
+	{"endpoints", "path", "端点路径"},
+	{"vendor_models", "vendor_id, model_id", "供应商-模型关联"},
+	{"model_endpoints", "model_id, endpoint_id", "模型-端点关联"},
+}
+
+// precheckUniqueIndexes 在建立唯一索引前检测重复数据。
+// 若存在重复行，GORM 只会抛出底层唯一索引冲突错误，很难定位；
+// 这里提前列出具体重复值，让运维可以按提示清理后再启动。
+func precheckUniqueIndexes() error {
+	var problems []string
+
+	for _, c := range uniqueIndexPrechecks {
+		query := fmt.Sprintf(
+			"SELECT %s, COUNT(*) AS duplicate_count FROM %s GROUP BY %s HAVING COUNT(*) > 1 LIMIT 20",
+			c.columns, c.table, c.columns,
+		)
+
+		var rows []map[string]interface{}
+		if err := DB.Raw(query).Scan(&rows).Error; err != nil {
+			// 表尚不存在（首次部署）时忽略
+			continue
+		}
+		for _, row := range rows {
+			problems = append(problems, fmt.Sprintf("  %s(%s): %v", c.label, c.columns, row))
+		}
+	}
+
+	if len(problems) > 0 {
+		return fmt.Errorf(
+			"检测到重复数据，无法建立唯一索引。请先清理以下记录后重新启动：\n%s",
+			strings.Join(problems, "\n"),
+		)
+	}
 	return nil
 }
 
@@ -95,6 +177,11 @@ func migrateDB() error {
 		common.SysLog("pre-migrate cleanup (tasks.user_id nulls): " + err.Error())
 	} else {
 		common.SysLog("pre-migrate cleanup: tasks.user_id nulls set to 0")
+	}
+
+	// 唯一索引前置检查：给出可操作的错误信息，而非底层数据库报错
+	if err := precheckUniqueIndexes(); err != nil {
+		return err
 	}
 
 	err := DB.AutoMigrate(

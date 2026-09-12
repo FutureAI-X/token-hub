@@ -70,6 +70,13 @@ func AdminCreateVendor(c *gin.Context) {
 		return
 	}
 
+	// 校验 BaseURL：该地址会承载解密后的供应商 API Key，必须阻断 SSRF
+	if err := common.ValidateOutboundBaseURL(req.BaseURL); err != nil {
+		common.SysErrorf("[AdminCreateVendor] BaseURL 校验失败: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "BaseURL 不合法: " + err.Error()})
+		return
+	}
+
 	// 用 data_key 解密前端传来的 API Key
 	apiKey, err := common.DecryptWithKey(req.APIKey, req.DataKey)
 	if err != nil {
@@ -132,6 +139,11 @@ func AdminUpdateVendor(c *gin.Context) {
 		updates["description"] = req.Description
 	}
 	if req.BaseURL != "" {
+		if err := common.ValidateOutboundBaseURL(req.BaseURL); err != nil {
+			common.SysErrorf("[AdminUpdateVendor] BaseURL 校验失败: %v", err)
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "BaseURL 不合法: " + err.Error()})
+			return
+		}
 		updates["base_url"] = req.BaseURL
 	}
 	if req.APIKey != "" {

@@ -11,38 +11,86 @@ import (
 )
 
 // ── 登录频次限制（防暴力破解）──
+// 仅统计「失败」尝试：成功登录会清空计数，避免 NAT 后的正常用户被误伤。
+// 表中条目会被定期清理，并设有硬上限，防止伪造来源 IP 撑爆内存。
 var (
-	loginAttempts = make(map[string][]time.Time)
-	loginMu       sync.Mutex
+	loginAttempts  = make(map[string][]time.Time)
+	loginMu        sync.Mutex
+	lastLoginSweep time.Time
 )
 
 const (
-	loginMaxAttempts = 5                    // 窗口内最大尝试次数
-	loginWindow      = 5 * time.Minute      // 时间窗口
+	loginMaxAttempts = 5               // 窗口内最大失败次数
+	loginWindow      = 5 * time.Minute // 时间窗口
+	maxTrackedIPs    = 100000          // 同时跟踪的来源 IP 上限
 )
 
-// checkLoginRateLimit 检查登录频率，达到上限则拒绝
+// sweepLoginAttemptsLocked 清理所有过期条目（调用方须持有 loginMu）。
+// 按 loginWindow 节流，避免每个请求都做一次全表遍历。
+func sweepLoginAttemptsLocked(now time.Time) {
+	if !lastLoginSweep.IsZero() && now.Sub(lastLoginSweep) < loginWindow {
+		return
+	}
+	lastLoginSweep = now
+
+	for ip, times := range loginAttempts {
+		kept := times[:0]
+		for _, t := range times {
+			if now.Sub(t) < loginWindow {
+				kept = append(kept, t)
+			}
+		}
+		if len(kept) == 0 {
+			delete(loginAttempts, ip)
+		} else {
+			loginAttempts[ip] = kept
+		}
+	}
+}
+
+// checkLoginRateLimit 判断该来源是否已被限流（只读，不计数）
 func checkLoginRateLimit(clientIP string) bool {
 	now := time.Now()
 	loginMu.Lock()
 	defer loginMu.Unlock()
 
-	// 清理过期记录
-	var recent []time.Time
+	sweepLoginAttemptsLocked(now)
+
+	recent := 0
 	for _, t := range loginAttempts[clientIP] {
 		if now.Sub(t) < loginWindow {
-			recent = append(recent, t)
+			recent++
+		}
+	}
+	return recent < loginMaxAttempts
+}
+
+// recordLoginFailure 记录一次登录失败
+func recordLoginFailure(clientIP string) {
+	now := time.Now()
+	loginMu.Lock()
+	defer loginMu.Unlock()
+
+	// 内存保护：达到上限时强制清理一次；若仍满载则放弃记录新来源，
+	// 宁可降低对新 IP 的计数精度，也不让 map 无界增长。
+	if len(loginAttempts) >= maxTrackedIPs {
+		if _, exists := loginAttempts[clientIP]; !exists {
+			lastLoginSweep = time.Time{}
+			sweepLoginAttemptsLocked(now)
+			if len(loginAttempts) >= maxTrackedIPs {
+				return
+			}
 		}
 	}
 
-	if len(recent) >= loginMaxAttempts {
-		loginAttempts[clientIP] = recent
-		return false
-	}
+	loginAttempts[clientIP] = append(loginAttempts[clientIP], now)
+}
 
-	recent = append(recent, now)
-	loginAttempts[clientIP] = recent
-	return true
+// resetLoginAttempts 登录成功后清空该来源的失败记录
+func resetLoginAttempts(clientIP string) {
+	loginMu.Lock()
+	defer loginMu.Unlock()
+	delete(loginAttempts, clientIP)
 }
 
 // LoginRequest 登录请求
@@ -78,6 +126,8 @@ func Login(c *gin.Context) {
 	}
 
 	if err := user.ValidateAndFill(); err != nil {
+		// 仅失败计入限流，避免正常用户被自己的成功登录挤出配额
+		recordLoginFailure(c.ClientIP())
 		// 统一错误文案，避免账号枚举
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,
@@ -85,6 +135,9 @@ func Login(c *gin.Context) {
 		})
 		return
 	}
+
+	// 登录成功，清空失败计数
+	resetLoginAttempts(c.ClientIP())
 
 	// 生成 JWT Token
 	token, err := common.GenerateToken(user.ID, user.Username, user.Role)
@@ -110,8 +163,8 @@ func Login(c *gin.Context) {
 		"success": true,
 		"message": "登录成功",
 		"data": gin.H{
-			"token":     token,
-			"data_key":  dataKey,
+			"token":    token,
+			"data_key": dataKey,
 			"user": gin.H{
 				"id":           user.ID,
 				"username":     user.Username,

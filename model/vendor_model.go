@@ -5,12 +5,14 @@ import (
 )
 
 // VendorModel 供应商模型关联（供应商 + 模型 + 供应商侧的模型ID）
+// (vendor_id, model_id) 唯一：重复行会让 image.go 中「取第一个供应商」的路由
+// 结果依赖物理行序，产生不确定的上游选择。
 type VendorModel struct {
-	ID            int    `json:"id" gorm:"primaryKey"`
-	VendorID      int    `json:"vendor_id" gorm:"index;not null"`
-	ModelID       int    `json:"model_id" gorm:"index;not null"`
-	VendorModelID string `json:"vendor_model_id" gorm:"size:256;not null"`
-	Status        int    `json:"status" gorm:"default:1"`
+	ID            int       `json:"id" gorm:"primaryKey"`
+	VendorID      int       `json:"vendor_id" gorm:"uniqueIndex:idx_vendor_model;not null"`
+	ModelID       int       `json:"model_id" gorm:"uniqueIndex:idx_vendor_model;not null"`
+	VendorModelID string    `json:"vendor_model_id" gorm:"size:256;not null"`
+	Status        int       `json:"status" gorm:"default:1"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 
@@ -88,6 +90,22 @@ func DeleteVendorModel(id int) error {
 // GetVendorModelsByModelID 根据模型ID获取可用的供应商模型列表
 func GetVendorModelsByModelID(modelID int) ([]VendorModel, error) {
 	var items []VendorModel
-	err := DB.Where("model_id = ? AND status = ?", modelID, 1).Find(&items).Error
+	err := DB.Where("model_id = ? AND status = ?", modelID, 1).
+		Order("id ASC"). // 显式排序：调用方取 [0] 作为实际路由目标，无序会导致结果不确定
+		Find(&items).Error
+	return items, err
+}
+
+// GetEnabledVendorModelsByModelID 获取模型下「关联启用 且 供应商本身也启用」的供应商模型。
+// 仅过滤关联表状态是不够的——供应商被禁用后，其关联行仍是启用状态，
+// 会导致流量继续打向已停用的供应商。
+func GetEnabledVendorModelsByModelID(modelID int) ([]VendorModel, error) {
+	var items []VendorModel
+	err := DB.Model(&VendorModel{}).
+		Joins("JOIN vendors ON vendors.id = vendor_models.vendor_id").
+		Where("vendor_models.model_id = ? AND vendor_models.status = ? AND vendors.status = ?",
+			modelID, VendorStatusEnabled, VendorStatusEnabled).
+		Order("vendor_models.id ASC").
+		Find(&items).Error
 	return items, err
 }

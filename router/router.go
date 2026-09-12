@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/controller"
 	"github.com/FutureAI/token-hub/middleware"
 	"github.com/gin-gonic/gin"
@@ -45,9 +46,14 @@ func SetRouter(server *gin.Engine) {
 		userRouter.GET("/task-logs/:id", controller.GetUserTaskLogDetail)
 	}
 
-	// API 路由组（校验 API Key）
+	// API 路由组（校验 API Key + 按用户限流）
+	// 限流用于约束上游额度消耗：这些端点每次调用都会真实花费供应商配额。
 	apiRouter := server.Group("/v1")
 	apiRouter.Use(middleware.APIAuth())
+	apiRouter.Use(middleware.RateLimit(
+		common.GetEnvOrDefault("API_RATE_LIMIT_PER_MINUTE", 60),
+		common.GetEnvOrDefault("API_RATE_LIMIT_BURST", 10),
+	))
 	{
 		// 模型列表接口
 		apiRouter.GET("/models", controller.ListModels)

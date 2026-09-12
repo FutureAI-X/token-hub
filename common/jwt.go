@@ -3,7 +3,6 @@ package common
 import (
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -17,15 +16,12 @@ var (
 )
 
 // getJWTSecret 获取 JWT 密钥（首次调用时加载 .env）
+// fail-closed：密钥缺失/为默认值时直接终止进程，绝不回落到可预测的默认值。
 func getJWTSecret() []byte {
 	jwtOnce.Do(func() {
-		ensureEnvLoaded()
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "token-hub-jwt-secret-change-me"
-		}
-		if secret == "token-hub-jwt-secret-change-me" {
-			log.Printf("[TOKEN-HUB] [安全] JWT_SECRET 未设置或为默认值，JWT 可被伪造，请设置强随机密钥!")
+		secret, err := RequireSecret("JWT_SECRET")
+		if err != nil {
+			log.Fatalf("[TOKEN-HUB] [安全] %v", err)
 		}
 		jwtSecret = []byte(secret)
 	})

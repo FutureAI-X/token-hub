@@ -19,8 +19,8 @@ func GetPricing(c *gin.Context) {
 		return
 	}
 
-	// 获取所有供应商
-	vendors, err := model.GetVendors()
+	// 获取所有供应商（仅公开信息：不含 api_key / base_url）
+	vendors, err := model.GetPublicVendors()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

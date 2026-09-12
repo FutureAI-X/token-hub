@@ -9,8 +9,9 @@ type Vendor struct {
 	// 唯一标识，自增主键
 	ID int `json:"id" gorm:"primaryKey"`
 
-	// 名称
-	Name string `json:"name" gorm:"size:128;not null"`
+	// 名称。唯一：上传路径通过名称（忽略大小写）定位供应商，
+	// 重名会让凭据选择变得不确定。
+	Name string `json:"name" gorm:"size:128;not null;uniqueIndex"`
 
 	// 描述
 	Description string `json:"description,omitempty" gorm:"type:text"`
@@ -18,8 +19,9 @@ type Vendor struct {
 	// API 基础地址
 	BaseURL string `json:"base_url" gorm:"size:512"`
 
-	// API 密钥
-	APIKey string `json:"api_key" gorm:"size:512"`
+	// API 密钥（密文）。json:"-" 确保该字段永不会被误序列化到任何 API 响应中，
+	// 需要对外展示时一律使用 PublicVendor 或显式脱敏。
+	APIKey string `json:"-" gorm:"size:512"`
 
 	// 状态：1=启用, 2=禁用, 3=已删除
 	Status int `json:"status" gorm:"default:1"`
@@ -42,6 +44,28 @@ const (
 func GetVendors() ([]Vendor, error) {
 	var vendors []Vendor
 	err := DB.Where("status = ?", 1).Order("id ASC").Find(&vendors).Error
+	return vendors, err
+}
+
+// PublicVendor 供应商公开信息。
+// 用于 /api/pricing 这类无需认证的接口——刻意不包含 APIKey / BaseURL，
+// 避免向匿名调用方泄露上游凭据与供应商基础设施地址。
+type PublicVendor struct {
+	ID          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Status      int    `json:"status"`
+}
+
+// GetPublicVendors 获取所有启用供应商的公开信息（绝不包含密钥字段）。
+// 使用显式 Select 白名单，即使未来 Vendor 增加敏感字段也不会连带泄露。
+func GetPublicVendors() ([]PublicVendor, error) {
+	var vendors []PublicVendor
+	err := DB.Model(&Vendor{}).
+		Select("id", "name", "description", "status").
+		Where("status = ?", VendorStatusEnabled).
+		Order("id ASC").
+		Find(&vendors).Error
 	return vendors, err
 }
 
@@ -78,6 +102,18 @@ func AdminGetVendors() ([]Vendor, error) {
 	var vendors []Vendor
 	err := DB.Where("status != ?", VendorStatusDeleted).Order("id ASC").Find(&vendors).Error
 	return vendors, err
+}
+
+// GetEnabledVendorByID 根据 ID 获取「启用」的供应商。
+// 用于生成/上传等真实调用路径：禁用（status=2）的供应商必须立刻停止承接流量，
+// 否则运维停用失效/欠费供应商后流量仍会继续消耗。
+func GetEnabledVendorByID(id int) (*Vendor, error) {
+	var vendor Vendor
+	err := DB.Where("id = ? AND status = ?", id, VendorStatusEnabled).First(&vendor).Error
+	if err != nil {
+		return nil, err
+	}
+	return &vendor, nil
 }
 
 // GetVendorByID 根据 ID 获取供应商（不含已删除）
@@ -119,4 +155,3 @@ func UpdateVendorStatus(id int, status int) error {
 func DeleteVendor(id int) error {
 	return DB.Model(&Vendor{}).Where("id = ?", id).Update("status", VendorStatusDeleted).Error
 }
-

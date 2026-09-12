@@ -6,9 +6,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"io"
+	"log"
 	"math/big"
-	"os"
 	"sync"
 
 	"golang.org/x/crypto/bcrypt"
@@ -22,12 +23,12 @@ var (
 )
 
 // getServerKey 获取服务端加密密钥（首次调用时加载 .env）
+// fail-closed：密钥缺失/为默认值时直接终止进程，否则供应商密钥会被公开可预测的密钥加密。
 func getServerKey() string {
 	serverKeyOnce.Do(func() {
-		ensureEnvLoaded()
-		secret := os.Getenv("SECRET_KEY")
-		if secret == "" {
-			secret = "token-hub-secret-change-me"
+		secret, err := RequireSecret("SECRET_KEY")
+		if err != nil {
+			log.Fatalf("[TOKEN-HUB] [安全] %v", err)
 		}
 		hash := sha256.Sum256([]byte(secret))
 		serverKey = base64.StdEncoding.EncodeToString(hash[:])
@@ -136,7 +137,9 @@ func DecryptWithKey(ciphertextBase64 string, keyBase64 string) (string, error) {
 
 	nonceSize := gcm.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return "", err
+		// 注意：此处必须返回真实错误。此前返回的 err 为 nil，
+		// 调用方只判 err 就会把空字符串当作"解密成功的密钥"继续使用。
+		return "", errors.New("密文长度不足，无法解密")
 	}
 
 	nonce, encryptedData := ciphertext[:nonceSize], ciphertext[nonceSize:]

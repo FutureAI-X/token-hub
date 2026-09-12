@@ -3,11 +3,15 @@ package model
 import (
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"math"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/FutureAI/token-hub/common"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // 用户角色常量
@@ -288,28 +292,53 @@ func UpdateUser(id int, updates map[string]interface{}) error {
 	return DB.Model(&User{}).Where("id = ?", id).Updates(updates).Error
 }
 
-// AdjustUserCredits 调整用户积分
+// AdjustUserCredits 调整用户积分。
+// 全程使用数据库端原子表达式（credits = credits ± ?），不再读-改-写：
+// 并发调整时原来的实现会丢失更新（TOCTOU），导致余额与审计不一致。
+// 同时写入一条 CreditLog，使管理员调整可追溯。
 func AdjustUserCredits(id int, mode string, value float64) error {
-	user, err := GetUserByID(id)
-	if err != nil {
-		return err
+	if math.IsNaN(value) || math.IsInf(value, 0) || value < 0 {
+		return errors.New("积分调整值必须是非负数")
 	}
 
-	switch mode {
-	case "add":
-		return DB.Model(user).Update("credits", user.Credits+value).Error
-	case "subtract":
-		newCredits := user.Credits - value
-		if newCredits < 0 {
-			newCredits = 0
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var expr clause.Expr
+		var remark string
+
+		switch mode {
+		case "add":
+			expr = gorm.Expr("credits + ?", value)
+			remark = fmt.Sprintf("管理员增加积分 %.6f", value)
+		case "subtract":
+			// GREATEST 保证余额不会变成负数
+			expr = gorm.Expr("GREATEST(credits - ?, 0)", value)
+			remark = fmt.Sprintf("管理员扣减积分 %.6f", value)
+		case "override":
+			expr = gorm.Expr("?", value)
+			remark = fmt.Sprintf("管理员覆盖积分为 %.6f", value)
+		default:
+			return errors.New("invalid mode: must be add, subtract, or override")
 		}
-		return DB.Model(user).Update("credits", newCredits).Error
-	case "override":
-		return DB.Model(user).Update("credits", value).Error
-	default:
-		return errors.New("invalid mode: must be add, subtract, or override")
-	}
+
+		result := tx.Model(&User{}).Where("id = ?", id).Update("credits", expr)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("用户不存在")
+		}
+
+		return tx.Create(&CreditLog{
+			UserID:  id,
+			Credits: value,
+			Type:    CreditLogTypeAdjust,
+			Remark:  remark,
+		}).Error
+	})
 }
+
+// rootInitialPasswordFile 初始密码落盘位置（仅首次创建 root 时写入）
+const rootInitialPasswordFile = "root_initial_password.txt"
 
 // CreateRootUserIfNeed 创建 root 用户（如果不存在）
 func CreateRootUserIfNeed() error {
@@ -319,8 +348,14 @@ func CreateRootUserIfNeed() error {
 		return nil
 	}
 
-	// 创建默认 root 用户（随机生成初始密码，避免使用已知默认密码）
-	initialPassword := common.GenerateRandomPassword(16)
+	// 优先采用环境变量提供的初始密码；未提供则随机生成，避免任何已知默认密码
+	initialPassword := os.Getenv("INITIAL_ROOT_PASSWORD")
+	generated := false
+	if initialPassword == "" {
+		initialPassword = common.GenerateRandomPassword(16)
+		generated = true
+	}
+
 	hashedPassword, err := common.Password2Hash(initialPassword)
 	if err != nil {
 		return err
@@ -339,6 +374,16 @@ func CreateRootUserIfNeed() error {
 		return err
 	}
 
-	common.SysErrorf("已创建默认 root 用户(用户名: root)，初始密码: %s —— 请立即修改!", initialPassword)
+	// 初始密码绝不写入日志：日志会流向容器日志、journald 或第三方聚合平台，
+	// 可见范围远大于数据库本身。改为写入仅属主可读的文件（0600）。
+	if !generated {
+		common.SysErrorf("已创建 root 用户(用户名: root)，初始密码取自 INITIAL_ROOT_PASSWORD 环境变量，请立即登录修改密码")
+		return nil
+	}
+
+	if err := os.WriteFile(rootInitialPasswordFile, []byte(initialPassword+"\n"), 0600); err != nil {
+		return fmt.Errorf("root 用户已创建，但初始密码写入文件失败: %w（请删除该用户，设置 INITIAL_ROOT_PASSWORD 后重启）", err)
+	}
+	common.SysErrorf("已创建 root 用户(用户名: root)，初始密码已写入 %s（权限 0600）。请立即登录修改密码并删除该文件", rootInitialPasswordFile)
 	return nil
 }

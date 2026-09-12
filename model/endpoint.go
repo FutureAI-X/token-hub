@@ -10,8 +10,9 @@ var ErrEndpointInUse = errors.New("该端点仍被模型引用，无法删除")
 
 // Endpoint 端点定义
 type Endpoint struct {
-	ID          int       `json:"id" gorm:"primaryKey"`
-	Path        string    `json:"path" gorm:"size:256;not null"`
+	ID int `json:"id" gorm:"primaryKey"`
+	// Path 唯一：请求路由通过 path 定位端点，重复会让查找结果不确定
+	Path        string    `json:"path" gorm:"size:256;not null;uniqueIndex"`
 	Name        string    `json:"name" gorm:"size:128;not null"`
 	Description string    `json:"description" gorm:"size:512"`
 	Status      int       `json:"status" gorm:"default:1"`

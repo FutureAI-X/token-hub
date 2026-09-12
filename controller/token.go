@@ -3,6 +3,7 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/FutureAI/token-hub/common"
 	"github.com/FutureAI/token-hub/model"
@@ -31,7 +32,10 @@ func GetTokens(c *gin.Context) {
 		CreatedAt string `json:"created_at"`
 	}
 
-	dataKey := c.Query("data_key")
+	// dataKey 从请求头读取而非查询参数：
+	// 查询串会进入访问日志、反向代理日志、浏览器历史与 Referer 头，
+	// 而 data_key 正是用于解密返回的 API Key 的密钥，等同于凭证本身。
+	dataKey := strings.TrimSpace(c.GetHeader("X-Data-Key"))
 	items := make([]tokenResponse, len(tokens))
 	for i, t := range tokens {
 		key := ""

@@ -2,6 +2,13 @@
 # 启动: docker-compose up -d
 # 停止: docker-compose down
 # 删除数据: docker-compose down -v
+#
+# 安全提示：
+#   - 端口仅绑定 127.0.0.1，避免数据库暴露到公网。
+#     如果曾在公网主机上以 5432:5432 启动过，任何人都能直接读取
+#     全部密码哈希与供应商密钥密文。
+#   - 密码从环境变量读取，不在仓库中硬编码。使用前请在 .env 中设置
+#     POSTGRES_PASSWORD（可用 openssl rand -hex 24 生成）。
 
 services:
   postgres:
@@ -9,13 +16,13 @@ services:
     container_name: token-hub-postgres
     restart: always
     environment:
-      POSTGRES_USER: token_hub
-      POSTGRES_PASSWORD: token_hub_123
-      POSTGRES_DB: token_hub
+      POSTGRES_USER: ${POSTGRES_USER:-token_hub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 必须设置，请勿使用默认密码}
+      POSTGRES_DB: ${POSTGRES_DB:-token_hub}
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
 volumes:
   pg_data:

@@ -11,20 +11,20 @@ import (
 
 // Task 任务记录
 type Task struct {
-	ID             int        `json:"id" gorm:"primaryKey"`
-	TaskID         string     `json:"task_id" gorm:"uniqueIndex;size:64;not null"`
-	UserID         int        `json:"user_id" gorm:"index;not null;default:0"`             // 用户ID
-	VendorID       int        `json:"vendor_id" gorm:"index;not null;default:0"`
-	ModelID        int        `json:"model_id" gorm:"index;not null;default:0"`
-	EndpointID     int        `json:"endpoint_id" gorm:"index;not null;default:0"`
-	Status         string     `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
-	Credits        float64        `json:"credits" gorm:"type:numeric(20,6);default:0"`        // 消耗的积分数量
-	CreditsRefunded bool          `json:"credits_refunded" gorm:"default:false"`              // 积分是否已退还
-	VendorResponse string         `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
-	QueryResponse  string         `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `json:"-" gorm:"index"`
+	ID              int            `json:"id" gorm:"primaryKey"`
+	TaskID          string         `json:"task_id" gorm:"uniqueIndex;size:64;not null"`
+	UserID          int            `json:"user_id" gorm:"index;not null;default:0"` // 用户ID
+	VendorID        int            `json:"vendor_id" gorm:"index;not null;default:0"`
+	ModelID         int            `json:"model_id" gorm:"index;not null;default:0"`
+	EndpointID      int            `json:"endpoint_id" gorm:"index;not null;default:0"`
+	Status          string         `json:"status" gorm:"size:32;not null;default:'submitted'"` // submitted, completed, failed
+	Credits         float64        `json:"credits" gorm:"type:numeric(20,6);default:0"`        // 消耗的积分数量
+	CreditsRefunded bool           `json:"credits_refunded" gorm:"default:false"`              // 积分是否已退还
+	VendorResponse  string         `json:"vendor_response" gorm:"type:text"`                   // 供应商任务提交响应 JSON
+	QueryResponse   string         `json:"query_response" gorm:"type:text"`                    // 供应商任务查询响应 JSON
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `json:"-" gorm:"index"`
 
 	// 非数据库字段
 	Username string `json:"username,omitempty" gorm:"-"`
@@ -54,6 +54,17 @@ func CreateTaskAndDeduct(task *Task, amount float64, remark string) error {
 		// 再扣除积分（积分日志直接引用真实任务ID）
 		return deductCreditsTx(tx, task.UserID, task.TaskID, amount, remark)
 	})
+}
+
+// SetTaskVendorResponse 记录供应商提交响应并将任务置为已提交。
+// 与 UpdateTaskStatus 的区别：这里写的是 vendor_response 字段——
+// 恢复轮询（RecoverPendingTasks）依赖该字段取回供应商任务 ID，
+// 若误写到 query_response，重启后任务会被判定为「缺少供应商响应」而错误退款。
+func SetTaskVendorResponse(taskID string, vendorResponse string) error {
+	return DB.Model(&Task{}).Where("task_id = ?", taskID).Updates(map[string]interface{}{
+		"status":          "submitted",
+		"vendor_response": vendorResponse,
+	}).Error
 }
 
 // GetTaskByTaskID 根据任务ID获取任务

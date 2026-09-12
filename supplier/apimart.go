@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
@@ -22,10 +23,8 @@ type apimart struct {
 // newAPIMart 创建 APIMart 供应商实例
 func newAPIMart(cfg Config) *apimart {
 	return &apimart{
-		cfg: cfg,
-		client: &http.Client{
-			Timeout: defaultHTTPTimeout,
-		},
+		cfg:    cfg,
+		client: common.NewSafeHTTPClient(defaultHTTPTimeout),
 	}
 }
 
@@ -75,7 +74,8 @@ func (a *apimart) ImageGenerate(req ImageGenerateRequest) ImageGenerateResponse 
 	common.SysLogf("[APIMart] 收到响应: HTTP %d", resp.StatusCode)
 
 	// 读取响应
-	respBody, err := io.ReadAll(resp.Body)
+	// 限制读取体积：Timeout 只限时长，恶意上游可流式输出打爆内存
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, common.MaxOutboundBodySize))
 	if err != nil {
 		common.SysErrorf("[APIMart] 读取响应体失败: %v", err)
 		return fail
@@ -128,10 +128,10 @@ type apimartTaskQueryResponse struct {
 }
 
 type apimartTaskQueryData struct {
-	ID       string              `json:"id"`
-	Status   string              `json:"status"`
-	Progress int                 `json:"progress"`
-	Result   apimartTaskResult   `json:"result"`
+	ID       string            `json:"id"`
+	Status   string            `json:"status"`
+	Progress int               `json:"progress"`
+	Result   apimartTaskResult `json:"result"`
 }
 
 type apimartTaskResult struct {
@@ -139,8 +139,8 @@ type apimartTaskResult struct {
 }
 
 type apimartTaskImage struct {
-	URL      []string `json:"url"`
-	B64JSON  string   `json:"b64_json"`
+	URL     []string `json:"url"`
+	B64JSON string   `json:"b64_json"`
 }
 
 // TaskQuery 查询 APIMart 任务状态
@@ -182,7 +182,8 @@ func (a *apimart) TaskQuery(vendorResponse string) TaskQueryResponse {
 	common.SysLogf("[APIMart] 查询响应: HTTP %d", resp.StatusCode)
 
 	// 读取响应
-	respBody, err := io.ReadAll(resp.Body)
+	// 限制读取体积：Timeout 只限时长，恶意上游可流式输出打爆内存
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, common.MaxOutboundBodySize))
 	if err != nil {
 		common.SysErrorf("[APIMart] 读取查询响应失败: %v", err)
 		return failResp
@@ -254,10 +255,8 @@ type apimartUploader struct {
 // newAPIMartUploader 创建 APIMart 上传实例
 func newAPIMartUploader(cfg Config) *apimartUploader {
 	return &apimartUploader{
-		cfg: cfg,
-		client: &http.Client{
-			Timeout: defaultHTTPTimeout,
-		},
+		cfg:    cfg,
+		client: common.NewSafeHTTPClient(defaultHTTPTimeout),
 	}
 }
 
@@ -275,11 +274,16 @@ type apimartUploadResponse struct {
 func (u *apimartUploader) UploadImage(ctx context.Context, filename string, contentType string, data []byte) (*UploadResult, error) {
 	url := fmt.Sprintf("%s/v1/uploads/images", u.cfg.BaseURL)
 
-	// 构造 multipart/form-data
+	// 构造 multipart/form-data。
+	// 使用 mime.FormatMediaType 而非手工拼接：它会按 RFC 2231 对
+	// 特殊字符（含 CR/LF）做百分号编码，避免文件名注入额外的请求头。
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	header := make(textproto.MIMEHeader)
-	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
+	header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{
+		"name":     "file",
+		"filename": filename,
+	}))
 	header.Set("Content-Type", contentType)
 	part, err := writer.CreatePart(header)
 	if err != nil {
@@ -306,7 +310,8 @@ func (u *apimartUploader) UploadImage(ctx context.Context, filename string, cont
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	// 限制读取体积：Timeout 只限时长，恶意上游可流式输出打爆内存
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, common.MaxOutboundBodySize))
 	if err != nil {
 		common.SysErrorf("[APIMart] 读取上传响应失败: %v", err)
 		return nil, err

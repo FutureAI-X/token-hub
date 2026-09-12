@@ -10,6 +10,7 @@ import (
 const (
 	CreditLogTypeDeduct = "deduct" // 扣除
 	CreditLogTypeRefund = "refund" // 退还
+	CreditLogTypeAdjust = "adjust" // 管理员手动调整
 )
 
 // CreditLog 积分日志
@@ -18,8 +19,8 @@ type CreditLog struct {
 	UserID    int       `json:"user_id" gorm:"index;not null"`
 	TaskID    string    `json:"task_id" gorm:"index;size:64"`
 	Credits   float64   `json:"credits" gorm:"type:numeric(20,6);not null"` // 积分数量（正数）
-	Type      string    `json:"type" gorm:"size:32;not null"`                // deduct=扣除, refund=退还
-	Remark    string    `json:"remark" gorm:"size:255"`                      // 备注
+	Type      string    `json:"type" gorm:"size:32;not null"`               // deduct=扣除, refund=退还
+	Remark    string    `json:"remark" gorm:"size:255"`                     // 备注
 	CreatedAt time.Time `json:"created_at"`
 
 	// 非数据库字段

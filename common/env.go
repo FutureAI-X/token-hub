@@ -20,6 +20,33 @@ func ensureEnvLoaded() {
 	})
 }
 
+// insecureDefaultSecrets 仓库中出现过的示例/历史默认密钥。
+// 任何一项仍在生效都意味着该密钥实际是公开的，必须视为未配置。
+var insecureDefaultSecrets = map[string]struct{}{
+	"token-hub-jwt-secret-change-me": {},
+	"token-hub-secret-change-me":     {},
+}
+
+// MinSecretLen 密钥最小长度。32 字符 ≈ 128 位熵（十六进制编码时）。
+const MinSecretLen = 32
+
+// RequireSecret 读取必填密钥；未设置、仍为示例默认值、或强度不足时返回错误。
+// 采用 fail-closed：配置错误时拒绝启动，而不是回落到一个公开可预测的默认值。
+func RequireSecret(name string) (string, error) {
+	ensureEnvLoaded()
+	value := os.Getenv(name)
+	if value == "" {
+		return "", fmt.Errorf("%s 未设置，请在 .env 中配置强随机值（如 openssl rand -hex 32）", name)
+	}
+	if _, isDefault := insecureDefaultSecrets[value]; isDefault {
+		return "", fmt.Errorf("%s 仍为示例默认值，该值已公开，攻击者可据此伪造凭证，请改为强随机值", name)
+	}
+	if len(value) < MinSecretLen {
+		return "", fmt.Errorf("%s 仅 %d 字符，强度不足（至少需要 %d 字符）", name, len(value), MinSecretLen)
+	}
+	return value, nil
+}
+
 // GetEnvOrDefault 获取环境变量，如果不存在则返回默认值
 func GetEnvOrDefault(env string, defaultValue int) int {
 	if env == "" || os.Getenv(env) == "" {

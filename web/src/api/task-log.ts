@@ -6,9 +6,15 @@ function authHeaders(): Record<string, string> {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  // options 先展开、headers 最后合并：若反过来，任何传入 headers 的调用
+  // 都会整体覆盖掉 Authorization，导致 401
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...((options?.headers as Record<string, string>) ?? {}),
+    },
   })
   return res.json()
 }

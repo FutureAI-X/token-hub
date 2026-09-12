@@ -14,11 +14,13 @@ services:
     image: postgres:15
     container_name: token-hub-postgres
     environment:
-      POSTGRES_USER: token_hub
-      POSTGRES_PASSWORD: token_hub_123
-      POSTGRES_DB: token_hub
+      POSTGRES_USER: ${POSTGRES_USER:-token_hub}
+      # 密码从环境变量读取，不在仓库中硬编码
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD 必须设置}
+      POSTGRES_DB: ${POSTGRES_DB:-token_hub}
     ports:
-      - "5432:5432"
+      # 仅绑定回环地址，切勿暴露到公网
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
 
@@ -103,7 +105,11 @@ docker-compose up -d
 ```bash
 SQL_DSN=postgres://token_hub:token_hub_123@localhost:5432/token_hub?sslmode=disable
 PORT=3001
-GIN_MODE=debug
+GIN_MODE=release
+
+# 必填！至少 32 字符，否则服务拒绝启动。生成: openssl rand -hex 32
+JWT_SECRET=
+SECRET_KEY=
 ```
 
 ### 3. 安装依赖
@@ -138,7 +144,12 @@ npm run dev
 | `SQL_MAX_IDLE_CONNS` | 最大空闲连接数 | `10` |
 | `SQL_MAX_OPEN_CONNS` | 最大打开连接数 | `100` |
 | `SQL_MAX_LIFETIME` | 连接最大生存时间(秒) | `60` |
-| `JWT_SECRET` | JWT 密钥（用于生成和验证 Token） | `token-hub-jwt-secret-change-me` |
+| `JWT_SECRET` | JWT 密钥，**必填**且至少 32 字符，否则拒绝启动 | 无（缺失即退出） |
+| `SECRET_KEY` | 供应商密钥加密密钥，**必填**且至少 32 字符 | 无（缺失即退出） |
+| `TRUSTED_PROXIES` | 信任的反向代理网段（逗号分隔 IP/CIDR） | 空（不信任任何代理头） |
+| `API_RATE_LIMIT_PER_MINUTE` | `/v1` 每用户每分钟请求数 | `60` |
+| `API_RATE_LIMIT_BURST` | `/v1` 每用户瞬时突发量 | `10` |
+| `INITIAL_ROOT_PASSWORD` | root 初始密码（可选） | 空（随机生成并写入文件） |
 | `DEBUG` | 调试模式 | `false` |
 
 ## API 接口
@@ -154,9 +165,16 @@ POST /api/auth/login
 ```json
 {
   "username": "root",
-  "password": "123456"
+  "password": "<首次启动时生成，见下方说明>"
 }
 ```
+
+首次启动且 `users` 表为空时会自动创建 `root` 用户，其初始密码：
+
+- 若设置了 `INITIAL_ROOT_PASSWORD` 环境变量，则使用该值；
+- 否则随机生成并写入 `./root_initial_password.txt`（权限 `0600`）。
+
+该密码**不会**写入日志。请登录后立即通过 `PUT /api/user/password` 修改，并删除密码文件。
 
 响应示例：
 
@@ -281,11 +299,59 @@ token-hub/
 - ✅ 响应式设计（支持移动端）
 - ✅ 流畅动画（淡入效果）
 
+## 上线安全清单
+
+部署到公网前请逐项确认：
+
+- [ ] `JWT_SECRET` 与 `SECRET_KEY` 均设置为至少 32 字符的随机值（`openssl rand -hex 32`）。
+      服务在两者缺失或过短时会**拒绝启动**，不会回落到默认值。
+      ⚠️ `SECRET_KEY` 一旦用于加密数据后不可更改，否则已存的供应商密钥将无法解密。
+- [ ] `GIN_MODE=release`、`DEBUG=false`。
+- [ ] PostgreSQL 端口**不要**暴露到公网（`docker-compose.yml` 已默认绑定 `127.0.0.1`），
+      并使用强密码。
+- [ ] 服务置于 HTTPS 反向代理之后，由代理下发 `Strict-Transport-Security`。
+- [ ] 若部署在反向代理/CDN 之后，设置 `TRUSTED_PROXIES` 为代理网段，
+      否则所有请求的客户端 IP 都会是代理地址，登录限流会把全部用户视为同一来源。
+      反之，若服务直接对外，**不要**设置该变量（默认不信任任何代理头，可防 `X-Forwarded-For` 伪造）。
+- [ ] 按业务规模调整 `API_RATE_LIMIT_PER_MINUTE` / `API_RATE_LIMIT_BURST`。
+- [ ] 确认每个启用中的模型都配置了计费规则：未配置规则的模型会返回
+      「该模型未配置计费规则，暂不可用」，而不是静默免费。
+- [ ] 登录后立即修改 root 密码，并删除 `root_initial_password.txt`。
+- [ ] 配置日志轮转（访问日志已开启 `SkipQueryString`，不会记录查询串）。
+
+### 反向代理
+
+项目根目录提供了可直接使用的 [nginx.conf](nginx.conf)，它同时负责：
+
+- 托管前端静态文件（`web/dist`）—— Go 服务本身不提供静态文件服务
+- 将 `/api`、`/v1`、`/health` 反向代理到 Go 服务
+- TLS 终止、安全响应头、gzip、上传体积放宽、登录接口限流
+
+配置文件顶部列有**部署前必读**的四项，其中最容易漏掉的是
+`TRUSTED_PROXIES` —— 漏配会导致所有用户被登录限流视为同一来源。
+
+### 凭证传递方式
+
+所有凭证**仅**通过 `Authorization: Bearer <token>` 请求头传递。
+
+查询参数形式（`?token=` / `?data_key=`）已不再支持：查询串会进入访问日志、
+反向代理日志、浏览器历史与 `Referer` 头。获取 API Key 列表时请使用
+`X-Data-Key` 请求头。
+
+## 测试
+
+```bash
+go test ./...          # 运行全部单元测试
+```
+
+覆盖范围包括密钥强度校验、加解密往返、SSRF 目标拦截、
+文件名清洗与 multipart 头注入防护、认证凭证提取、限流令牌桶。
+
 ## 开发计划
 
 - [x] PostgreSQL 数据库集成
 - [x] 模型管理（从数据库读取）
 - [x] 用户认证系统（JWT + bcrypt）
-- [ ] API Key管理
-- [ ] 使用量统计
-- [ ] 计费系统
+- [x] API Key 管理
+- [x] 使用量统计
+- [x] 计费系统（预扣费 + 失败退款）

@@ -68,8 +68,8 @@ func ImageGenerate(c *gin.Context) {
 		return
 	}
 
-	// 4. 查找可用供应商
-	vendorModels, err := model.GetVendorModelsByModelID(m.ID)
+	// 4. 查找可用供应商（仅返回「关联启用 且 供应商本身也启用」的项）
+	vendorModels, err := model.GetEnabledVendorModelsByModelID(m.ID)
 	if err != nil || len(vendorModels) == 0 {
 		common.SysErrorf("[ImageGenerate] 无可用供应商: model=%s, err=%v", modelName, err)
 		c.JSON(http.StatusServiceUnavailable, gin.H{"code": "fail", "message": "无可用供应商"})
@@ -78,10 +78,10 @@ func ImageGenerate(c *gin.Context) {
 
 	// 取第一个可用供应商
 	vendorModel := vendorModels[0]
-	vendor, err := model.GetVendorByID(vendorModel.VendorID)
+	vendor, err := model.GetEnabledVendorByID(vendorModel.VendorID)
 	if err != nil {
-		common.SysErrorf("[ImageGenerate] 供应商信息获取失败: vendorID=%d, err=%v", vendorModel.VendorID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "供应商信息获取失败"})
+		common.SysErrorf("[ImageGenerate] 供应商不可用: vendorID=%d, err=%v", vendorModel.VendorID, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": "fail", "message": "无可用供应商"})
 		return
 	}
 
@@ -96,7 +96,51 @@ func ImageGenerate(c *gin.Context) {
 		return
 	}
 
-	// 6. 调用供应商 API
+	// 6. 确认调用方身份（由 APIAuth 中间件从 API Key 解析）
+	userID := c.GetInt("user_id")
+	if userID <= 0 {
+		common.SysErrorf("[ImageGenerate] 缺少有效用户身份: userID=%d", userID)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": gin.H{"message": "无效的 API Key", "type": "authentication_error"},
+		})
+		return
+	}
+
+	// 7. 计算积分消耗。
+	// 必须在覆盖 reqBody["model"] 之前计算：差异化计费规则可能以 model 作为条件，
+	// 此处应匹配调用方传入的模型名，而不是供应商侧的模型 ID。
+	creditsAmount, err := resolveCredits(m.ID, reqBody)
+	if err != nil {
+		common.SysErrorf("[ImageGenerate] 计费规则解析失败: model=%s, err=%v", modelName, err)
+		c.JSON(http.StatusServiceUnavailable, gin.H{"code": "fail", "message": "该模型未配置计费规则，暂不可用"})
+		return
+	}
+
+	// 8. 先扣费、后调用上游。
+	// 顺序至关重要：若先调用供应商再扣费，零余额用户可以让平台先产生真实成本，
+	// 随后扣费失败返回 402，形成「无限免费消耗上游额度」。
+	task := model.Task{
+		TaskID:     model.GenerateTaskID(),
+		UserID:     userID,
+		VendorID:   vendor.ID,
+		ModelID:    m.ID,
+		EndpointID: endpoint.ID,
+		Status:     "pending", // 尚未提交上游
+		Credits:    creditsAmount,
+	}
+
+	if err := model.CreateTaskAndDeduct(&task, creditsAmount, "图像生成任务"); err != nil {
+		if errors.Is(err, model.ErrInsufficientCredits) {
+			common.SysErrorf("[ImageGenerate] 积分不足: userID=%d, amount=%.6f", userID, creditsAmount)
+			c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
+		} else {
+			common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
+		}
+		return
+	}
+
+	// 9. 构造供应商客户端
 	cfg := supplier.Config{
 		BaseURL: vendor.BaseURL,
 		APIKey:  apiKey,
@@ -104,91 +148,77 @@ func ImageGenerate(c *gin.Context) {
 	s := supplier.NewSupplier(vendor.Name, cfg)
 	if s == nil {
 		common.SysErrorf("[ImageGenerate] 不支持的供应商类型: %s", vendor.Name)
+		// 未调用上游即失败，退还预扣积分
+		model.UpdateTaskStatusWithRefund(task.TaskID, "call_fail", `{"error":"unsupported vendor"}`)
 		c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "不支持的供应商类型"})
 		return
 	}
 
-	// 将请求体中的 model 替换为供应商侧的模型ID
+	// 10. 调用供应商 API（将用户侧模型名替换为供应商侧模型 ID）
 	reqBody["model"] = vendorModel.VendorModelID
 
 	result := s.ImageGenerate(supplier.ImageGenerateRequest{
 		Body: reqBody,
 	})
 
-	// 7. 调用失败直接返回
+	// 11. 上游调用失败 → 退还积分
 	if result.Code != "success" {
 		common.SysErrorf("[ImageGenerate] 供应商调用失败: vendor=%s, model=%s", vendor.Name, modelName)
+		if err := model.UpdateTaskStatusWithRefund(task.TaskID, "call_fail", `{"error":"vendor call failed"}`); err != nil {
+			common.SysErrorf("[ImageGenerate] 退还积分失败: taskID=%s, err=%v", task.TaskID, err)
+		}
 		c.JSON(http.StatusOK, gin.H{"code": "fail", "message": "供应商调用失败"})
 		return
 	}
 
-	// 8. 计算积分消耗
-	creditsAmount := float64(0)
-	creditRule, err := model.GetCreditRuleByModelID(m.ID)
-	if err == nil && creditRule != nil {
-		creditsAmount = creditRule.BaseCredits
-		// 检查是否有参数组合差异化定价：某组合的所有条件都命中才使用该积分
-		for _, item := range creditRule.Items {
-			matched := len(item.Conditions) > 0
-			for _, cond := range item.Conditions {
-				if paramVal, ok := reqBody[cond.ParamPath].(string); !ok || paramVal != cond.ParamValue {
-					matched = false
-					break
-				}
-			}
-			if matched {
-				creditsAmount = item.Credits
-				break
-			}
-		}
-	}
-
-	// 9. 获取当前用户ID（由 APIAuth 中间件从 API Key 解析）
-	userID := c.GetInt("user_id")
-
-	// 10. 构造任务，先建任务再按规则扣除积分（原子：扣积分失败则整体回滚，不留孤儿任务）
+	// 12. 提交成功：记录供应商响应并转入轮询
 	vendorRespJSON, _ := json.Marshal(result.Data)
-	task := model.Task{
-		TaskID:         model.GenerateTaskID(),
-		UserID:         userID,
-		VendorID:       vendor.ID,
-		ModelID:        m.ID,
-		EndpointID:     endpoint.ID,
-		Status:         "submitted",
-		Credits:        creditsAmount,
-		VendorResponse: string(vendorRespJSON),
-	}
-
-	if creditsAmount > 0 && userID > 0 {
-		if err := model.CreateTaskAndDeduct(&task, creditsAmount, "图像生成任务"); err != nil {
-			if errors.Is(err, model.ErrInsufficientCredits) {
-				common.SysErrorf("[ImageGenerate] 积分不足: userID=%d, amount=%d", userID, creditsAmount)
-				c.JSON(http.StatusPaymentRequired, gin.H{"code": "fail", "message": "积分不足"})
-			} else {
-				common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
-			}
-			return
-		}
-	} else {
-		// 免费任务或未鉴权：不扣积分，仅建任务
-		if err := model.CreateTask(&task); err != nil {
-			common.SysErrorf("[ImageGenerate] 任务创建失败: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"code": "fail", "message": "任务创建失败"})
-			return
-		}
+	if err := model.SetTaskVendorResponse(task.TaskID, string(vendorRespJSON)); err != nil {
+		common.SysErrorf("[ImageGenerate] 记录供应商响应失败: taskID=%s, err=%v", task.TaskID, err)
 	}
 
 	common.SysLogf("[ImageGenerate] 任务创建成功: taskId=%s, vendor=%s, model=%s", task.TaskID, vendor.Name, modelName)
 
-	// 9. 启动后台轮询任务状态
-	go pollTaskStatus(task.TaskID, task.VendorResponse, vendor.Name, cfg)
+	// 13. 启动后台轮询任务状态
+	go pollTaskStatus(task.TaskID, string(vendorRespJSON), vendor.Name, cfg)
 
-	// 10. 返回系统 taskId
+	// 14. 返回系统 taskId
 	c.JSON(http.StatusOK, gin.H{
 		"code":   "success",
 		"taskId": task.TaskID,
 	})
+}
+
+// resolveCredits 按模型的计费规则计算本次请求应扣积分。
+// 未配置规则时返回错误（fail-closed）：否则模型漏配规则会变成对所有人免费，
+// 而这是运维上极易发生、且不会被察觉的资损。如需免费模型，请显式配置一条 0 积分的规则。
+func resolveCredits(modelID int, reqBody map[string]interface{}) (float64, error) {
+	creditRule, err := model.GetCreditRuleByModelID(modelID)
+	if err != nil || creditRule == nil {
+		return 0, errors.New("模型未配置计费规则")
+	}
+
+	creditsAmount := creditRule.BaseCredits
+
+	// 参数组合差异化定价：某组合的所有条件都命中时使用该组合的积分
+	for _, item := range creditRule.Items {
+		matched := len(item.Conditions) > 0
+		for _, cond := range item.Conditions {
+			if paramVal, ok := reqBody[cond.ParamPath].(string); !ok || paramVal != cond.ParamValue {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			creditsAmount = item.Credits
+			break
+		}
+	}
+
+	if creditsAmount < 0 {
+		return 0, errors.New("计费规则中的积分为负数")
+	}
+	return creditsAmount, nil
 }
 
 // GetTask 查询任务状态
@@ -206,9 +236,17 @@ func GetTask(c *gin.Context) {
 		return
 	}
 
-	// 校验任务归属：仅允许查询本人的任务
+	// 校验任务归属：仅允许查询本人的任务。
+	// 刻意不保留 userID > 0 的「跳过校验」分支——历史数据中存在 user_id=0 的任务，
+	// 一旦放行，任何持有 API Key 的人都能读取这些任务。
 	userID := c.GetInt("user_id")
-	if userID > 0 && task.UserID != userID {
+	if userID <= 0 {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": gin.H{"message": "无效的 API Key", "type": "authentication_error"},
+		})
+		return
+	}
+	if task.UserID != userID {
 		c.JSON(http.StatusForbidden, gin.H{"taskId": taskID, "status": "fail", "message": "无权查看此任务"})
 		return
 	}
@@ -226,8 +264,26 @@ func GetTask(c *gin.Context) {
 	})
 }
 
+// maxConcurrentPolls 并发轮询上限。
+// 每个轮询 goroutine 最长存活 10 分钟、每 5 秒发起一次上游调用；
+// 若不加限制，请求量会被放大成任意数量的常驻 goroutine 与上游请求。
+const maxConcurrentPolls = 500
+
+// pollSem 轮询并发槽位
+var pollSem = make(chan struct{}, maxConcurrentPolls)
+
 // pollTaskStatus 后台轮询供应商任务状态
+// 取不到并发槽位时立即终止任务并退还积分，避免用户为无人轮询的任务付费。
 func pollTaskStatus(taskID string, vendorResponse string, vendorName string, cfg supplier.Config) {
+	select {
+	case pollSem <- struct{}{}:
+		defer func() { <-pollSem }()
+	default:
+		common.SysErrorf("[TaskPoll] 轮询并发已达上限(%d)，终止任务并退款: taskID=%s", maxConcurrentPolls, taskID)
+		model.UpdateTaskStatusWithRefund(taskID, "call_fail", `{"error":"poll concurrency limit reached"}`)
+		return
+	}
+
 	s := supplier.NewSupplier(vendorName, cfg)
 	if s == nil {
 		common.SysErrorf("[TaskPoll] 不支持的供应商: %s, taskID=%s", vendorName, taskID)

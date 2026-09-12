@@ -6,9 +6,16 @@ function authHeaders(): Record<string, string> {
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  // 注意顺序：options 先展开，headers 最后合并。
+  // 若按原来的写法（headers 在前、...options 在后），任何传入 headers 的调用
+  // 都会整体覆盖掉 Authorization，导致 401。
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+      ...((options?.headers as Record<string, string>) ?? {}),
+    },
   })
   return res.json()
 }
@@ -22,7 +29,10 @@ export interface ApiKey {
 }
 
 export function getTokens(dataKey: string) {
-  return request<{ success: boolean; data: ApiKey[] }>(`${BASE}/tokens?data_key=${encodeURIComponent(dataKey)}`)
+  // data_key 通过请求头传递，避免出现在 URL 查询串中（会进入访问日志/浏览器历史）
+  return request<{ success: boolean; data: ApiKey[] }>(`${BASE}/tokens`, {
+    headers: { 'X-Data-Key': dataKey },
+  })
 }
 
 export function createToken(name: string, dataKey: string) {

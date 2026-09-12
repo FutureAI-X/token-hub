@@ -2,13 +2,17 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // ModelEndpoint 模型端点关联
+// (model_id, endpoint_id) 唯一：重复关联会让「该模型是否支持某端点」的判断与
+// 关联列表出现冗余行。
 type ModelEndpoint struct {
 	ID         int       `json:"id" gorm:"primaryKey"`
-	ModelID    int       `json:"model_id" gorm:"index;not null"`
-	EndpointID int       `json:"endpoint_id" gorm:"index;not null"`
+	ModelID    int       `json:"model_id" gorm:"uniqueIndex:idx_model_endpoint;not null"`
+	EndpointID int       `json:"endpoint_id" gorm:"uniqueIndex:idx_model_endpoint;not null"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 
@@ -49,20 +53,29 @@ func GetEndpointMapByID() (map[int]Endpoint, error) {
 	return m, nil
 }
 
-// SyncModelEndpoints 同步模型端点（全量替换）
+// SyncModelEndpoints 同步模型端点（全量替换，整体在一个事务内完成）
 func SyncModelEndpoints(modelID int, endpointIDs []int) error {
-	if err := DB.Where("model_id = ?", modelID).Delete(&ModelEndpoint{}).Error; err != nil {
-		return err
-	}
-
-	for _, eid := range endpointIDs {
-		me := ModelEndpoint{
-			ModelID:    modelID,
-			EndpointID: eid,
-		}
-		if err := DB.Create(&me).Error; err != nil {
+	return DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("model_id = ?", modelID).Delete(&ModelEndpoint{}).Error; err != nil {
 			return err
 		}
-	}
-	return nil
+
+		// 去重：同一 endpointID 重复出现会违反唯一索引
+		seen := make(map[int]struct{}, len(endpointIDs))
+		for _, eid := range endpointIDs {
+			if _, dup := seen[eid]; dup {
+				continue
+			}
+			seen[eid] = struct{}{}
+
+			me := ModelEndpoint{
+				ModelID:    modelID,
+				EndpointID: eid,
+			}
+			if err := tx.Create(&me).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
